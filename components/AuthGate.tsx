@@ -5,23 +5,49 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
 
+export type Rol = "YONETICI" | "MUHASEBE" | "SURUCU";
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<any>(null);
+  const [rol, setRol] = useState<Rol>("YONETICI");
   const pathname = usePathname();
   const router = useRouter();
 
+  async function rolBelirle(userId: string) {
+    const { data } = await supabase
+      .from("suruculer")
+      .select("rol")
+      .eq("kullanici_id", userId)
+      .maybeSingle();
+
+    if (!data) return "YONETICI" as Rol;
+    return (data.rol === "MUHASEBE" ? "MUHASEBE" : "SURUCU") as Rol;
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
+      if (data.session) {
+        const r = await rolBelirle(data.session.user.id);
+        setRol(r);
+        // Sürücülerin varsayılan iniş sayfası dashboard değil, Araçlar olsun
+        if (r === "SURUCU" && pathname === "/") {
+          router.replace("/araclar");
+        }
+      }
       setChecking(false);
       if (!data.session && pathname !== "/login") {
         router.replace("/login");
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
+      if (newSession) {
+        const r = await rolBelirle(newSession.user.id);
+        setRol(r);
+      }
       if (!newSession && pathname !== "/login") {
         router.replace("/login");
       }
@@ -49,7 +75,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar userEmail={session.user?.email} />
+      <Sidebar userEmail={session.user?.email} rol={rol} />
       <main className="flex-1 bg-paper min-h-screen">{children}</main>
     </div>
   );
