@@ -11,6 +11,7 @@ type Surucu = {
   telefon: string | null;
   kullanici_id: string | null;
   aktif_mi: boolean;
+  rol: string;
 };
 
 type AracKisa = { arac_id: string; plaka: string; sorumlu_surucu_id: string | null };
@@ -22,7 +23,11 @@ const BOS_FORM = {
   telefon: "",
   kullanici_id: "",
   aktif_mi: true,
+  rol: "SURUCU",
 };
+
+const ROL_ETIKET: Record<string, string> = { SURUCU: "Sürücü", MUHASEBE: "Muhasebeci" };
+const ROL_BADGE: Record<string, string> = { SURUCU: "badge-idle", MUHASEBE: "badge-warn" };
 
 export default function PersonelPage() {
   const [personel, setPersonel] = useState<Surucu[]>([]);
@@ -39,7 +44,7 @@ export default function PersonelPage() {
   async function loadData() {
     setLoading(true);
     const [{ data: s }, { data: a }] = await Promise.all([
-      supabase.from("suruculer").select("surucu_id, ad, soyad, ehliyet_no, telefon, kullanici_id, aktif_mi").order("ad"),
+      supabase.from("suruculer").select("surucu_id, ad, soyad, ehliyet_no, telefon, kullanici_id, aktif_mi, rol").order("ad"),
       supabase.from("araclar").select("arac_id, plaka, sorumlu_surucu_id"),
     ]);
     setPersonel(s ?? []);
@@ -64,6 +69,7 @@ export default function PersonelPage() {
       telefon: p.telefon ?? "",
       kullanici_id: p.kullanici_id ?? "",
       aktif_mi: p.aktif_mi,
+      rol: p.rol ?? "SURUCU",
     });
     setShowForm(true);
     setError(null);
@@ -94,6 +100,7 @@ export default function PersonelPage() {
       telefon: form.telefon || null,
       kullanici_id: form.kullanici_id.trim() || null,
       aktif_mi: form.aktif_mi,
+      rol: form.rol,
     };
 
     const { error } = editingId
@@ -129,7 +136,7 @@ export default function PersonelPage() {
         <div>
           <h1 className="font-display text-2xl mb-1">Sürücüler</h1>
           <p className="text-sm text-slate-500">
-            Zimmetli personel kayıtları — girişte sadece kendi zimmetli aracını görür
+            Sürücü ve muhasebeci kayıtları — rol, panelde görecekleri sayfaları belirler
           </p>
         </div>
         <button className="btn-primary" onClick={handleNewClick}>
@@ -138,11 +145,11 @@ export default function PersonelPage() {
       </div>
 
       <div className="card p-3 mb-4 text-xs text-slate-500">
-        Bir personelin panelde giriş yapabilmesi için önce Supabase Dashboard &gt; Authentication &gt; Users
-        kısmından bir kullanıcı oluşturulmalı. Oradaki kullanıcının <code className="font-mono">User UID</code>{" "}
-        değerini kopyalayıp aşağıdaki <b>Kullanıcı ID</b> alanına yapıştır — bu, personeli giriş hesabına bağlar
-        ve zimmetli aracı dışındakileri görmesini engeller. Kullanıcı ID boş bırakılırsa o personel panele
-        giriş yapamaz, sadece kayıt olarak durur.
+        Panele giriş yapabilmesi için önce Supabase Dashboard &gt; Authentication &gt; Users kısmından
+        bir kullanıcı oluşturulmalı, oradaki <code className="font-mono">User UID</code> değeri
+        aşağıdaki <b>Kullanıcı ID</b> alanına yapıştırılmalı. <b>Rol = Sürücü</b> ise sadece kendi
+        zimmetli aracını görür; <b>Rol = Muhasebeci</b> ise tüm filonun analiz/rapor/masraf
+        ekranlarını görür. Kullanıcı ID boş bırakılırsa panele giriş yapamaz.
       </div>
 
       {showForm && (
@@ -161,6 +168,14 @@ export default function PersonelPage() {
               onChange={(e) => setForm({ ...form, soyad: e.target.value })} />
           </div>
           <div>
+            <label className="text-xs text-slate-500 block mb-1">Rol</label>
+            <select className="input" value={form.rol}
+              onChange={(e) => setForm({ ...form, rol: e.target.value })}>
+              <option value="SURUCU">Sürücü</option>
+              <option value="MUHASEBE">Muhasebeci</option>
+            </select>
+          </div>
+          <div>
             <label className="text-xs text-slate-500 block mb-1">Telefon</label>
             <input className="input" value={form.telefon}
               onChange={(e) => setForm({ ...form, telefon: e.target.value })} placeholder="05xx xxx xx xx" />
@@ -170,20 +185,20 @@ export default function PersonelPage() {
             <input className="input" value={form.ehliyet_no}
               onChange={(e) => setForm({ ...form, ehliyet_no: e.target.value })} />
           </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs text-slate-500 block mb-1">
-              Kullanıcı ID (Supabase Auth User UID — opsiyonel)
-            </label>
-            <input className="input font-mono text-xs" value={form.kullanici_id}
-              onChange={(e) => setForm({ ...form, kullanici_id: e.target.value })}
-              placeholder="ör. 8f14e45f-ceea-4a1d-..." />
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-600 mt-6">
               <input type="checkbox" checked={form.aktif_mi}
                 onChange={(e) => setForm({ ...form, aktif_mi: e.target.checked })} />
               Aktif
             </label>
+          </div>
+          <div className="sm:col-span-3">
+            <label className="text-xs text-slate-500 block mb-1">
+              Kullanıcı ID (Supabase Auth User UID)
+            </label>
+            <input className="input font-mono text-xs" value={form.kullanici_id}
+              onChange={(e) => setForm({ ...form, kullanici_id: e.target.value })}
+              placeholder="ör. 8f14e45f-ceea-4a1d-..." />
           </div>
           <div className="sm:col-span-3 flex items-center gap-3">
             <button type="submit" disabled={saving} className="btn-primary">
@@ -202,6 +217,7 @@ export default function PersonelPage() {
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-line">
               <th className="px-5 py-3 font-normal">Ad Soyad</th>
+              <th className="px-5 py-3 font-normal">Rol</th>
               <th className="px-5 py-3 font-normal">Telefon</th>
               <th className="px-5 py-3 font-normal">Zimmetli araç</th>
               <th className="px-5 py-3 font-normal">Giriş hesabı</th>
@@ -215,6 +231,11 @@ export default function PersonelPage() {
               return (
                 <tr key={p.surucu_id} className="border-b border-line last:border-0">
                   <td className="px-5 py-3 text-slate-700">{p.ad} {p.soyad}</td>
+                  <td className="px-5 py-3">
+                    <span className={`badge ${ROL_BADGE[p.rol] ?? "badge-idle"}`}>
+                      {ROL_ETIKET[p.rol] ?? p.rol}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-slate-600">{p.telefon ?? "—"}</td>
                   <td className="px-5 py-3">
                     {zimmetli.length === 0 ? (
