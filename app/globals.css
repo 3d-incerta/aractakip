@@ -1,0 +1,116 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #f6f7f9;
+  color: #101827;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.font-mono, .odometer, table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Gösterge paneli tarzı sayı okuma bileşeni */
+.odometer {
+  background: #0b1220;
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #f5a623;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.04em;
+  position: relative;
+  overflow: hidden;
+}
+
+.odometer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f5a623, transparent);
+  opacity: 0.6;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.02em;
+}
+
+.badge-ok {
+  background: rgba(21, 122, 110, 0.1);
+  color: #157a6e;
+}
+
+.badge-warn {
+  background: rgba(245, 166, 35, 0.14);
+  color: #b3760a;
+}
+
+.badge-danger {
+  background: rgba(214, 69, 69, 0.1);
+  color: #d64545;
+}
+
+.badge-idle {
+  background: rgba(16, 24, 39, 0.06);
+  color: #475467;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.input:focus {
+  outline: 2px solid #0b1220;
+  outline-offset: 1px;
+}
+
+.btn-primary {
+  background: #0b1220;
+  color: #fff;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #1f2b45;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+}
