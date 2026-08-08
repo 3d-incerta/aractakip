@@ -156,7 +156,7 @@ export default function AraclarPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-2xl mb-1">Araçlar</h1>
-          <p className="text-sm text-slate-500">Filodaki tüm araçlar</p>
+          <p className="text-sm text-slate-500">3D İnCerTa'daki tüm araçlar</p>
         </div>
         <button className="btn-primary" onClick={handleNewClick}>
           {showForm ? "Vazgeç" : "+ Araç ekle"}
