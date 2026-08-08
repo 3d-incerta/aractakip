@@ -266,6 +266,7 @@ export default function YolMasraflariPage() {
               <th className="px-5 py-3 font-normal">Gidilen firma</th>
               <th className="px-5 py-3 font-normal">Tutar</th>
               <th className="px-5 py-3 font-normal">Fatura durumu</th>
+              <th className="px-5 py-3 font-normal">Açıklama</th>
               <th className="px-5 py-3 font-normal text-right">İşlemler</th>
             </tr>
           </thead>
@@ -286,6 +287,9 @@ export default function YolMasraflariPage() {
                   >
                     {k.fatura_edildi_mi ? "Faturalandı" : "Faturalanmadı"}
                   </button>
+                </td>
+                <td className="px-5 py-3 text-slate-500 max-w-[220px] truncate" title={k.aciklama ?? ""}>
+                  {k.aciklama ?? "—"}
                 </td>
                 <td className="px-5 py-3 text-right whitespace-nowrap">
                   <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
