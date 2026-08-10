@@ -26,7 +26,7 @@ const BOS_FORM = {
   rol: "SURUCU",
 };
 
-const ROL_ETIKET: Record<string, string> = { SURUCU: "Sürücü", MUHASEBE: "Muhasebe Sorumlusu", FINANS: "Finans Sorumlusu" };
+const ROL_ETIKET: Record<string, string> = { SURUCU: "Sürücü", MUHASEBE: "Muhasebe Sorumlusu", FINANS: "Muhasebe ve Finans Müdürü" };
 const ROL_BADGE: Record<string, string> = { SURUCU: "badge-idle", MUHASEBE: "badge-warn", FINANS: "badge-warn" };
 
 export default function PersonelPage() {
@@ -38,11 +38,32 @@ export default function PersonelPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [yonetimYapabilir, setYonetimYapabilir] = useState(true); // sürücü rolü değilse true
 
   const [form, setForm] = useState(BOS_FORM);
 
   async function loadData() {
     setLoading(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (userId) {
+      const { data: kendiKayit } = await supabase
+        .from("suruculer")
+        .select("rol")
+        .eq("kullanici_id", userId)
+        .maybeSingle();
+      // suruculer'de kaydı yoksa yönetici demektir; kaydı varsa sadece
+      // MUHASEBE/FINANS yönetim yapabilir, SURUCU yapamaz
+      // suruculer tablosunda ekleme/silme sadece gerçek Yönetici'ye
+      // (suruculer'de hiç kaydı olmayana) açık — Muhasebe/Finans da salt okunur
+      if (kendiKayit) {
+        setYonetimYapabilir(false);
+      } else {
+        setYonetimYapabilir(true);
+      }
+    }
+
     const [{ data: s }, { data: a }] = await Promise.all([
       supabase.from("suruculer").select("surucu_id, ad, soyad, ehliyet_no, telefon, kullanici_id, aktif_mi, rol").order("ad"),
       supabase.from("araclar").select("arac_id, plaka, sorumlu_surucu_id"),
@@ -139,20 +160,24 @@ export default function PersonelPage() {
             Sürücü ve muhasebeci kayıtları — rol, panelde görecekleri sayfaları belirler
           </p>
         </div>
-        <button className="btn-primary" onClick={handleNewClick}>
-          {showForm ? "Vazgeç" : "+ Personel ekle"}
-        </button>
+        {yonetimYapabilir && (
+          <button className="btn-primary" onClick={handleNewClick}>
+            {showForm ? "Vazgeç" : "+ Personel ekle"}
+          </button>
+        )}
       </div>
 
-      <div className="card p-3 mb-4 text-xs text-slate-500">
-        Panele giriş yapabilmesi için önce Supabase Dashboard &gt; Authentication &gt; Users kısmından
-        bir kullanıcı oluşturulmalı, oradaki <code className="font-mono">User UID</code> değeri
-        aşağıdaki <b>Kullanıcı ID</b> alanına yapıştırılmalı. <b>Rol = Sürücü</b> ise sadece kendi
-        zimmetli aracını görür; <b>Rol = Muhasebe Sorumlusu</b> veya <b>Finans Sorumlusu</b> ise tüm filonun analiz/rapor/masraf
-        ekranlarını görür. Kullanıcı ID boş bırakılırsa panele giriş yapamaz.
-      </div>
+      {yonetimYapabilir && (
+        <div className="card p-3 mb-4 text-xs text-slate-500">
+          Panele giriş yapabilmesi için önce Supabase Dashboard &gt; Authentication &gt; Users kısmından
+          bir kullanıcı oluşturulmalı, oradaki <code className="font-mono">User UID</code> değeri
+          aşağıdaki <b>Kullanıcı ID</b> alanına yapıştırılmalı. <b>Rol = Sürücü</b> ise sadece kendi
+          zimmetli aracını görür; <b>Rol = Muhasebe Sorumlusu</b> veya <b>Muhasebe ve Finans Müdürü</b> ise tüm filonun analiz/rapor/masraf
+          ekranlarını görür. Kullanıcı ID boş bırakılırsa panele giriş yapamaz.
+        </div>
+      )}
 
-      {showForm && (
+      {showForm && yonetimYapabilir && (
         <form onSubmit={handleSubmit} className="card p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-3 text-xs font-mono uppercase tracking-widest text-slate-400">
             {editingId ? "Personeli düzenle" : "Yeni personel"}
@@ -173,7 +198,7 @@ export default function PersonelPage() {
               onChange={(e) => setForm({ ...form, rol: e.target.value })}>
               <option value="SURUCU">Sürücü</option>
               <option value="MUHASEBE">Muhasebe Sorumlusu</option>
-              <option value="FINANS">Finans Sorumlusu</option>
+              <option value="FINANS">Muhasebe ve Finans Müdürü</option>
             </select>
           </div>
           <div>
@@ -223,7 +248,7 @@ export default function PersonelPage() {
               <th className="px-5 py-3 font-normal">Zimmetli araç</th>
               <th className="px-5 py-3 font-normal">Giriş hesabı</th>
               <th className="px-5 py-3 font-normal">Durum</th>
-              <th className="px-5 py-3 font-normal text-right">İşlemler</th>
+              {yonetimYapabilir && <th className="px-5 py-3 font-normal text-right">İşlemler</th>}
             </tr>
           </thead>
           <tbody>
@@ -257,18 +282,20 @@ export default function PersonelPage() {
                       {p.aktif_mi ? "Aktif" : "Pasif"}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-right whitespace-nowrap">
-                    <button onClick={() => handleEditClick(p)} className="text-xs text-slate-500 hover:text-ink mr-4">
-                      Düzenle
-                    </button>
-                    <button
-                      onClick={() => handleDelete(p)}
-                      disabled={deletingId === p.surucu_id}
-                      className="text-xs text-red hover:opacity-70 disabled:opacity-40"
-                    >
-                      {deletingId === p.surucu_id ? "Siliniyor..." : "Sil"}
-                    </button>
-                  </td>
+                  {yonetimYapabilir && (
+                    <td className="px-5 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => handleEditClick(p)} className="text-xs text-slate-500 hover:text-ink mr-4">
+                        Düzenle
+                      </button>
+                      <button
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.surucu_id}
+                        className="text-xs text-red hover:opacity-70 disabled:opacity-40"
+                      >
+                        {deletingId === p.surucu_id ? "Siliniyor..." : "Sil"}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
