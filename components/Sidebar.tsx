@@ -36,6 +36,7 @@ const NAV_SURUCU = [
   { href: "/is-kayitlari", label: "Gidilen İşler" },
   { href: "/muayeneler", label: "Muayeneler" },
   { href: "/yakit", label: "Yakıt" },
+  { href: "/yol-masraflari", label: "Yol Masrafları" },
   { href: "/belgeler", label: "Belgeler" },
 ];
 

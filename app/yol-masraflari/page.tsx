@@ -64,11 +64,33 @@ export default function YolMasraflariPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<string>("HEPSİ");
+  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe değilse true
+  const [kendiSurucuId, setKendiSurucuId] = useState<string | null>(null);
 
   const [form, setForm] = useState(BOS_FORM);
 
   async function loadData() {
     setLoading(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    let benimSurucuId: string | null = null;
+    let yetkiliMi = true; // yönetici/muhasebe/finans mı?
+
+    if (userId) {
+      const { data: kendiKayit } = await supabase
+        .from("suruculer")
+        .select("surucu_id, rol")
+        .eq("kullanici_id", userId)
+        .maybeSingle();
+      if (kendiKayit) {
+        benimSurucuId = kendiKayit.surucu_id;
+        yetkiliMi = kendiKayit.rol === "MUHASEBE" || kendiKayit.rol === "FINANS";
+      }
+    }
+    setKendiSurucuId(benimSurucuId);
+    setSurucuMu(!yetkiliMi && !!benimSurucuId);
+
     const [{ data: k }, { data: s }] = await Promise.all([
       supabase
         .from("yol_masraflari")
@@ -126,7 +148,7 @@ export default function YolMasraflariPage() {
 
   function handleNewClick() {
     setEditingId(null);
-    setForm(BOS_FORM);
+    setForm(surucuMu ? { ...BOS_FORM, surucu_id: kendiSurucuId ?? "" } : BOS_FORM);
     setShowForm((s) => (editingId ? true : !s));
   }
 
@@ -142,16 +164,27 @@ export default function YolMasraflariPage() {
     setSaving(true);
     setError(null);
 
-    const payload = {
-      surucu_id: form.surucu_id || null,
-      gidilen_firma: form.gidilen_firma,
-      tarih: form.tarih,
-      tutar: Number(form.tutar),
-      durum: form.durum,
-      fatura_tarihi: form.fatura_tarihi || null,
-      fatura_no: form.fatura_no || null,
-      aciklama: form.aciklama || null,
-    };
+    const payload = surucuMu
+      ? {
+          surucu_id: kendiSurucuId,
+          gidilen_firma: form.gidilen_firma,
+          tarih: form.tarih,
+          tutar: Number(form.tutar),
+          durum: "BEKLEMEDE",
+          fatura_tarihi: null as string | null,
+          fatura_no: null as string | null,
+          aciklama: form.aciklama || null,
+        }
+      : {
+          surucu_id: form.surucu_id || null,
+          gidilen_firma: form.gidilen_firma,
+          tarih: form.tarih,
+          tutar: Number(form.tutar),
+          durum: form.durum,
+          fatura_tarihi: form.fatura_tarihi || null,
+          fatura_no: form.fatura_no || null,
+          aciklama: form.aciklama || null,
+        };
 
     const { error } = editingId
       ? await supabase.from("yol_masraflari").update(payload).eq("id", editingId)
@@ -194,36 +227,44 @@ export default function YolMasraflariPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="font-display text-2xl mb-1">Yol Masrafları</h1>
-          <p className="text-sm text-slate-500">Onay akışı: Beklemede → Onaylandı → Faturalandı</p>
+          <p className="text-sm text-slate-500">
+            {surucuMu
+              ? "Girdiğin masraflar onay için Muhasebe / Finans Sorumlusuna gider"
+              : "Onay akışı: Beklemede → Onaylandı → Faturalandı"}
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleExcelExport}
-            disabled={gorunenler.length === 0}
-            className="text-sm text-slate-600 border border-line rounded-md px-4 py-2.5 hover:bg-paper disabled:opacity-40"
-          >
-            Excel'e aktar
-          </button>
+          {!surucuMu && (
+            <button
+              onClick={handleExcelExport}
+              disabled={gorunenler.length === 0}
+              className="text-sm text-slate-600 border border-line rounded-md px-4 py-2.5 hover:bg-paper disabled:opacity-40"
+            >
+              Excel'e aktar
+            </button>
+          )}
           <button className="btn-primary" onClick={handleNewClick}>
             {showForm ? "Vazgeç" : "+ Masraf ekle"}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
-        <div className="card p-5">
-          <div className="text-xs text-slate-500 mb-2">Onay bekleyen toplam</div>
-          <div className="odometer text-lg font-semibold inline-block">
-            {bekleyenTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+      {!surucuMu && (
+        <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
+          <div className="card p-5">
+            <div className="text-xs text-slate-500 mb-2">Onay bekleyen toplam</div>
+            <div className="odometer text-lg font-semibold inline-block">
+              {bekleyenTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+            </div>
+          </div>
+          <div className="card p-5">
+            <div className="text-xs text-slate-500 mb-2">Görünen toplam</div>
+            <div className="odometer text-lg font-semibold inline-block">
+              {toplamTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+            </div>
           </div>
         </div>
-        <div className="card p-5">
-          <div className="text-xs text-slate-500 mb-2">Görünen toplam</div>
-          <div className="odometer text-lg font-semibold inline-block">
-            {toplamTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-1 mb-6 border-b border-line">
         {["HEPSİ", ...DURUMLAR].map((f) => (
@@ -244,14 +285,17 @@ export default function YolMasraflariPage() {
           <div className="sm:col-span-3 text-xs font-mono uppercase tracking-widest text-slate-400">
             {editingId ? "Masrafı düzenle" : "Yeni masraf"}
           </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Sürücü</label>
-            <select className="input" value={form.surucu_id}
-              onChange={(e) => setForm({ ...form, surucu_id: e.target.value })}>
-              <option value="">Seçiniz</option>
-              {surucular.map((s) => <option key={s.surucu_id} value={s.surucu_id}>{s.ad} {s.soyad}</option>)}
-            </select>
-          </div>
+
+          {!surucuMu && (
+            <div>
+              <label className="text-xs text-slate-500 block mb-1">Sürücü</label>
+              <select className="input" value={form.surucu_id}
+                onChange={(e) => setForm({ ...form, surucu_id: e.target.value })}>
+                <option value="">Seçiniz</option>
+                {surucular.map((s) => <option key={s.surucu_id} value={s.surucu_id}>{s.ad} {s.soyad}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="text-xs text-slate-500 block mb-1">Gidilen firma</label>
             <input required className="input" value={form.gidilen_firma}
@@ -260,6 +304,7 @@ export default function YolMasraflariPage() {
           <div>
             <label className="text-xs text-slate-500 block mb-1">Tarih</label>
             <input required type="date" className="input" value={form.tarih}
+              max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => setForm({ ...form, tarih: e.target.value })} />
           </div>
           <div>
@@ -267,22 +312,28 @@ export default function YolMasraflariPage() {
             <input required type="number" step="0.01" className="input" value={form.tutar}
               onChange={(e) => setForm({ ...form, tutar: e.target.value })} />
           </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Durum</label>
-            <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
-              {DURUMLAR.map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Fatura no (opsiyonel)</label>
-            <input className="input" value={form.fatura_no}
-              onChange={(e) => setForm({ ...form, fatura_no: e.target.value })} />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Fatura tarihi (opsiyonel)</label>
-            <input type="date" className="input" value={form.fatura_tarihi}
-              onChange={(e) => setForm({ ...form, fatura_tarihi: e.target.value })} />
-          </div>
+
+          {!surucuMu && (
+            <>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Durum</label>
+                <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
+                  {DURUMLAR.map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Fatura no (opsiyonel)</label>
+                <input className="input" value={form.fatura_no}
+                  onChange={(e) => setForm({ ...form, fatura_no: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Fatura tarihi (opsiyonel)</label>
+                <input type="date" className="input" value={form.fatura_tarihi}
+                  onChange={(e) => setForm({ ...form, fatura_tarihi: e.target.value })} />
+              </div>
+            </>
+          )}
+
           <div className="sm:col-span-2">
             <label className="text-xs text-slate-500 block mb-1">Açıklama</label>
             <input className="input" value={form.aciklama}
@@ -305,27 +356,29 @@ export default function YolMasraflariPage() {
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-line">
               <th className="px-5 py-3 font-normal">Tarih</th>
-              <th className="px-5 py-3 font-normal">Sürücü</th>
+              {!surucuMu && <th className="px-5 py-3 font-normal">Sürücü</th>}
               <th className="px-5 py-3 font-normal">Gidilen firma</th>
               <th className="px-5 py-3 font-normal">Tutar</th>
               <th className="px-5 py-3 font-normal">Durum</th>
               <th className="px-5 py-3 font-normal">Açıklama</th>
-              <th className="px-5 py-3 font-normal text-right">İşlemler</th>
+              {!surucuMu && <th className="px-5 py-3 font-normal text-right">İşlemler</th>}
             </tr>
           </thead>
           <tbody>
             {gorunenler.map((k) => (
               <tr key={k.id} className="border-b border-line last:border-0">
                 <td className="px-5 py-3 text-slate-600">{new Date(k.tarih).toLocaleDateString("tr-TR")}</td>
-                <td className="px-5 py-3 text-slate-700">
-                  {k.suruculer ? `${k.suruculer.ad} ${k.suruculer.soyad}` : "—"}
-                </td>
+                {!surucuMu && (
+                  <td className="px-5 py-3 text-slate-700">
+                    {k.suruculer ? `${k.suruculer.ad} ${k.suruculer.soyad}` : "—"}
+                  </td>
+                )}
                 <td className="px-5 py-3 text-slate-700">{k.gidilen_firma}</td>
                 <td className="px-5 py-3 font-mono">{Number(k.tutar).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺</td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`badge ${DURUM_BADGE[k.durum] ?? "badge-idle"}`}>{DURUM_ETIKET[k.durum] ?? k.durum}</span>
-                    {SONRAKI_DURUMLAR[k.durum]?.map((sonraki) => (
+                    {!surucuMu && SONRAKI_DURUMLAR[k.durum]?.map((sonraki) => (
                       <button
                         key={sonraki}
                         onClick={() => durumDegistir(k, sonraki)}
@@ -340,18 +393,20 @@ export default function YolMasraflariPage() {
                 <td className="px-5 py-3 text-slate-500 max-w-[180px] truncate" title={k.aciklama ?? ""}>
                   {k.aciklama ?? "—"}
                 </td>
-                <td className="px-5 py-3 text-right whitespace-nowrap">
-                  <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
-                    Düzenle
-                  </button>
-                  <button
-                    onClick={() => handleDelete(k)}
-                    disabled={deletingId === k.id}
-                    className="text-xs text-red hover:opacity-70 disabled:opacity-40"
-                  >
-                    {deletingId === k.id ? "Siliniyor..." : "Sil"}
-                  </button>
-                </td>
+                {!surucuMu && (
+                  <td className="px-5 py-3 text-right whitespace-nowrap">
+                    <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
+                      Düzenle
+                    </button>
+                    <button
+                      onClick={() => handleDelete(k)}
+                      disabled={deletingId === k.id}
+                      className="text-xs text-red hover:opacity-70 disabled:opacity-40"
+                    >
+                      {deletingId === k.id ? "Siliniyor..." : "Sil"}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
