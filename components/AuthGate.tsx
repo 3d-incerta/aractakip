@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/components/Sidebar";
 
-export type Rol = "YONETICI" | "MUHASEBE" | "SURUCU";
+export type Rol = "YONETICI" | "MUHASEBE" | "FINANS" | "SURUCU";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
@@ -22,7 +22,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       .maybeSingle();
 
     if (!data) return "YONETICI" as Rol;
-    return (data.rol === "MUHASEBE" ? "MUHASEBE" : "SURUCU") as Rol;
+    if (data.rol === "MUHASEBE") return "MUHASEBE" as Rol;
+    if (data.rol === "FINANS") return "FINANS" as Rol;
+    return "SURUCU" as Rol;
   }
 
   useEffect(() => {

@@ -26,8 +26,8 @@ const BOS_FORM = {
   rol: "SURUCU",
 };
 
-const ROL_ETIKET: Record<string, string> = { SURUCU: "Sürücü", MUHASEBE: "Muhasebeci" };
-const ROL_BADGE: Record<string, string> = { SURUCU: "badge-idle", MUHASEBE: "badge-warn" };
+const ROL_ETIKET: Record<string, string> = { SURUCU: "Sürücü", MUHASEBE: "Muhasebe Sorumlusu", FINANS: "Finans Sorumlusu" };
+const ROL_BADGE: Record<string, string> = { SURUCU: "badge-idle", MUHASEBE: "badge-warn", FINANS: "badge-warn" };
 
 export default function PersonelPage() {
   const [personel, setPersonel] = useState<Surucu[]>([]);
@@ -148,7 +148,7 @@ export default function PersonelPage() {
         Panele giriş yapabilmesi için önce Supabase Dashboard &gt; Authentication &gt; Users kısmından
         bir kullanıcı oluşturulmalı, oradaki <code className="font-mono">User UID</code> değeri
         aşağıdaki <b>Kullanıcı ID</b> alanına yapıştırılmalı. <b>Rol = Sürücü</b> ise sadece kendi
-        zimmetli aracını görür; <b>Rol = Muhasebeci</b> ise tüm filonun analiz/rapor/masraf
+        zimmetli aracını görür; <b>Rol = Muhasebe Sorumlusu</b> veya <b>Finans Sorumlusu</b> ise tüm filonun analiz/rapor/masraf
         ekranlarını görür. Kullanıcı ID boş bırakılırsa panele giriş yapamaz.
       </div>
 
@@ -172,7 +172,8 @@ export default function PersonelPage() {
             <select className="input" value={form.rol}
               onChange={(e) => setForm({ ...form, rol: e.target.value })}>
               <option value="SURUCU">Sürücü</option>
-              <option value="MUHASEBE">Muhasebeci</option>
+              <option value="MUHASEBE">Muhasebe Sorumlusu</option>
+              <option value="FINANS">Finans Sorumlusu</option>
             </select>
           </div>
           <div>
