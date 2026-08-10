@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { excelIndir } from "@/lib/excelIndir";
 
 type Surucu = {
   surucu_id: string;
@@ -96,6 +97,17 @@ export default function PersonelPage() {
     setError(null);
   }
 
+  function handleExcelExport() {
+    const veri = personel.map((p) => ({
+      "Ad Soyad": `${p.ad} ${p.soyad}`,
+      Telefon: p.telefon ?? "",
+      "Ehliyet No": p.ehliyet_no ?? "",
+      Rol: ROL_ETIKET[p.rol] ?? p.rol,
+      Durum: p.aktif_mi ? "Aktif" : "Pasif",
+    }));
+    excelIndir(veri, "suruculer", "Sürücüler");
+  }
+
   function handleNewClick() {
     setEditingId(null);
     setForm(BOS_FORM);
@@ -160,11 +172,20 @@ export default function PersonelPage() {
             Sürücü ve muhasebeci kayıtları — rol, panelde görecekleri sayfaları belirler
           </p>
         </div>
-        {yonetimYapabilir && (
-          <button className="btn-primary" onClick={handleNewClick}>
-            {showForm ? "Vazgeç" : "+ Personel ekle"}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExcelExport}
+            disabled={personel.length === 0}
+            className="text-sm text-slate-600 border border-line rounded-md px-4 py-2.5 hover:bg-paper disabled:opacity-40"
+          >
+            Excel'e aktar
           </button>
-        )}
+          {yonetimYapabilir && (
+            <button className="btn-primary" onClick={handleNewClick}>
+              {showForm ? "Vazgeç" : "+ Personel ekle"}
+            </button>
+          )}
+        </div>
       </div>
 
       {yonetimYapabilir && (
