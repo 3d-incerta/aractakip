@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -141,4 +141,202 @@ h1, h2, h3, .font-display {
 
 .bos-durum svg {
   opacity: 0.5;
+}
+
+/* =====================================================================
+   ANA PANEL — LÜKS KARŞILAMA BÖLÜMÜ (sadece Panel/Dashboard sayfasında)
+   ===================================================================== */
+
+.font-lux {
+  font-family: "Playfair Display", "Inter", serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lux-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0b1220 0%, #1a2338 55%, #0b1220 100%);
+  padding: 40px 36px;
+  color: #fff;
+  box-shadow: 0 20px 40px -12px rgba(11, 18, 32, 0.4);
+}
+
+.lux-hero::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.lux-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c9a227, transparent);
+}
+
+.lux-eyebrow {
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #c9a227;
+  font-weight: 600;
+}
+
+.lux-stat-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #ece7d9;
+  border-radius: 14px;
+  padding: 22px 20px;
+  box-shadow: 0 4px 16px -6px rgba(16, 24, 40, 0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+}
+
+.lux-stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #c9a227, #e8cf7a, #c9a227);
+}
+
+.lux-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -8px rgba(16, 24, 40, 0.14);
+}
+
+.lux-stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0b1220, #1f2937);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c9a227;
+  margin-bottom: 14px;
+}
+
+.lux-stat-value {
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 30px;
+  color: #101827;
+  letter-spacing: -0.01em;
+}
+
+.lux-stat-label {
+  font-size: 12.5px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.lux-section {
+  background: #ffffff;
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px -8px rgba(16, 24, 40, 0.06);
+  overflow: hidden;
+}
+
+.lux-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(180deg, #fcfbf7, #ffffff);
+}
+
+.lux-section-header .lux-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a227;
+}
+
+/* =====================================================================
+   LÜKS SOL MENÜ (Sidebar)
+   ===================================================================== */
+
+.lux-sidebar {
+  background: linear-gradient(180deg, #0b1220 0%, #131c30 55%, #0b1220 100%);
+  position: relative;
+}
+
+.lux-sidebar-header {
+  position: relative;
+  border-bottom: none !important;
+}
+
+.lux-sidebar-header::after {
+  content: "";
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.5), transparent);
+}
+
+.lux-nav-item {
+  position: relative;
+}
+
+.lux-nav-item.active {
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0.14), transparent);
+  border-left-color: #c9a227 !important;
+  color: #fff !important;
+}
+
+.lux-nav-item.active span:first-child {
+  color: #e8cf7a;
+}
+
+.lux-badge-count {
+  background: linear-gradient(135deg, #c9a227, #e8cf7a);
+  color: #0b1220;
+}
+
+.lux-sidebar-footer {
+  position: relative;
+  border-top: none !important;
+}
+
+.lux-sidebar-footer::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.35), transparent);
+}
+
+.lux-role-tag {
+  display: inline-block;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #0b1220;
+  background: linear-gradient(135deg, #c9a227, #e8cf7a);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 600;
 }

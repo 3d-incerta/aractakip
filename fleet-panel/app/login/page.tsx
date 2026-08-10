@@ -32,7 +32,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-2">
             <Logo size={40} />
           </div>
-          <div className="font-display text-2xl text-white tracking-tight">3D InCerTa</div>
+          <div className="font-lux text-2xl text-white">3D InCerTa</div>
           <div className="text-[11px] font-mono uppercase tracking-widest text-slate-500 mt-1">
             Araç Takip Sistemi
           </div>

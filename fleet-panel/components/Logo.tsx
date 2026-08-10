@@ -10,11 +10,11 @@ export default function Logo({ size = 28 }: { size?: number }) {
       {/* Sade altıgen işaret */}
       <path
         d="M16 3 L28 9.5 L28 22.5 L16 29 L4 22.5 L4 9.5 Z"
-        stroke="#E5E7EB"
+        stroke="#c9a227"
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
-      <circle cx="16" cy="16" r="2" fill="#E5E7EB" />
+      <circle cx="16" cy="16" r="2" fill="#c9a227" />
     </svg>
   );
 }
