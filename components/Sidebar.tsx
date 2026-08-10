@@ -12,6 +12,7 @@ const NAV_YONETICI = [
   { href: "/personel", label: "Sürücüler" },
   { href: "/is-kayitlari", label: "Gidilen İşler" },
   { href: "/yol-masraflari", label: "Yol Masrafları" },
+  { href: "/belgeler", label: "Belgeler" },
   { href: "/konum", label: "Konum" },
   { href: "/muayeneler", label: "Muayeneler" },
   { href: "/yakit", label: "Yakıt" },
@@ -25,6 +26,7 @@ const NAV_MUHASEBE = [
   { href: "/analiz", label: "Analiz" },
   { href: "/rapor", label: "Aylık Rapor" },
   { href: "/yol-masraflari", label: "Yol Masrafları" },
+  { href: "/belgeler", label: "Belgeler" },
   { href: "/denetim", label: "Denetim" },
 ];
 
@@ -34,6 +36,7 @@ const NAV_SURUCU = [
   { href: "/is-kayitlari", label: "Gidilen İşler" },
   { href: "/muayeneler", label: "Muayeneler" },
   { href: "/yakit", label: "Yakıt" },
+  { href: "/belgeler", label: "Belgeler" },
 ];
 
 function navSec(rol: Rol) {
@@ -106,5 +109,3 @@ export default function Sidebar({ userEmail, rol }: { userEmail?: string; rol: R
     </aside>
   );
 }
-
-

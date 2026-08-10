@@ -148,7 +148,7 @@ export default function AnalizPage() {
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E4E7EC" }}
                   formatter={(v: number) => [`${v} L/100km`, "Tüketim"]}
                 />
-                <Bar dataKey="L/100km" fill="#F5A623" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="L/100km" fill="#1F2937" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { excelIndir } from "@/lib/excelIndir";
 
 type SurucuKisa = { surucu_id: string; ad: string; soyad: string };
 
@@ -11,11 +12,35 @@ type Masraf = {
   gidilen_firma: string;
   tarih: string;
   tutar: number;
-  fatura_edildi_mi: boolean;
+  durum: string;
   fatura_tarihi: string | null;
   fatura_no: string | null;
   aciklama: string | null;
   suruculer: { ad: string; soyad: string } | null;
+};
+
+const DURUMLAR = ["BEKLEMEDE", "ONAYLANDI", "REDDEDILDI", "FATURALANDI"];
+
+const DURUM_ETIKET: Record<string, string> = {
+  BEKLEMEDE: "Beklemede",
+  ONAYLANDI: "Onaylandı",
+  REDDEDILDI: "Reddedildi",
+  FATURALANDI: "Faturalandı",
+};
+
+const DURUM_BADGE: Record<string, string> = {
+  BEKLEMEDE: "badge-idle",
+  ONAYLANDI: "badge-warn",
+  REDDEDILDI: "badge-danger",
+  FATURALANDI: "badge-ok",
+};
+
+// Her durumdan hangi durumlara geçilebilir
+const SONRAKI_DURUMLAR: Record<string, string[]> = {
+  BEKLEMEDE: ["ONAYLANDI", "REDDEDILDI"],
+  ONAYLANDI: ["FATURALANDI", "REDDEDILDI"],
+  REDDEDILDI: ["BEKLEMEDE"],
+  FATURALANDI: [],
 };
 
 const BOS_FORM = {
@@ -23,7 +48,7 @@ const BOS_FORM = {
   gidilen_firma: "",
   tarih: "",
   tutar: "",
-  fatura_edildi_mi: false,
+  durum: "BEKLEMEDE",
   fatura_tarihi: "",
   fatura_no: "",
   aciklama: "",
@@ -38,7 +63,7 @@ export default function YolMasraflariPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filtre, setFiltre] = useState<"HEPSİ" | "FATURALANMADI" | "FATURALANDI">("HEPSİ");
+  const [filtre, setFiltre] = useState<string>("HEPSİ");
 
   const [form, setForm] = useState(BOS_FORM);
 
@@ -47,7 +72,7 @@ export default function YolMasraflariPage() {
     const [{ data: k }, { data: s }] = await Promise.all([
       supabase
         .from("yol_masraflari")
-        .select("id, surucu_id, gidilen_firma, tarih, tutar, fatura_edildi_mi, fatura_tarihi, fatura_no, aciklama, suruculer(ad,soyad)")
+        .select("id, surucu_id, gidilen_firma, tarih, tutar, durum, fatura_tarihi, fatura_no, aciklama, suruculer(ad,soyad)")
         .order("tarih", { ascending: false })
         .limit(200),
       supabase.from("suruculer").select("surucu_id, ad, soyad").order("ad"),
@@ -62,13 +87,12 @@ export default function YolMasraflariPage() {
   }, []);
 
   const gorunenler = useMemo(() => {
-    if (filtre === "FATURALANMADI") return kayitlar.filter((k) => !k.fatura_edildi_mi);
-    if (filtre === "FATURALANDI") return kayitlar.filter((k) => k.fatura_edildi_mi);
-    return kayitlar;
+    if (filtre === "HEPSİ") return kayitlar;
+    return kayitlar.filter((k) => k.durum === filtre);
   }, [kayitlar, filtre]);
 
   const toplamTutar = gorunenler.reduce((s, k) => s + Number(k.tutar), 0);
-  const faturalanmamisTutar = kayitlar.filter((k) => !k.fatura_edildi_mi).reduce((s, k) => s + Number(k.tutar), 0);
+  const bekleyenTutar = kayitlar.filter((k) => k.durum === "BEKLEMEDE").reduce((s, k) => s + Number(k.tutar), 0);
 
   function handleEditClick(k: Masraf) {
     setEditingId(k.id);
@@ -77,13 +101,27 @@ export default function YolMasraflariPage() {
       gidilen_firma: k.gidilen_firma,
       tarih: k.tarih,
       tutar: String(k.tutar),
-      fatura_edildi_mi: k.fatura_edildi_mi,
+      durum: k.durum,
       fatura_tarihi: k.fatura_tarihi ?? "",
       fatura_no: k.fatura_no ?? "",
       aciklama: k.aciklama ?? "",
     });
     setShowForm(true);
     setError(null);
+  }
+
+  function handleExcelExport() {
+    const veri = gorunenler.map((k) => ({
+      Tarih: new Date(k.tarih).toLocaleDateString("tr-TR"),
+      Sürücü: k.suruculer ? `${k.suruculer.ad} ${k.suruculer.soyad}` : "",
+      "Gidilen Firma": k.gidilen_firma,
+      Tutar: Number(k.tutar),
+      Durum: DURUM_ETIKET[k.durum] ?? k.durum,
+      "Fatura No": k.fatura_no ?? "",
+      "Fatura Tarihi": k.fatura_tarihi ? new Date(k.fatura_tarihi).toLocaleDateString("tr-TR") : "",
+      Açıklama: k.aciklama ?? "",
+    }));
+    excelIndir(veri, "yol-masraflari", "Yol Masrafları");
   }
 
   function handleNewClick() {
@@ -109,7 +147,7 @@ export default function YolMasraflariPage() {
       gidilen_firma: form.gidilen_firma,
       tarih: form.tarih,
       tutar: Number(form.tutar),
-      fatura_edildi_mi: form.fatura_edildi_mi,
+      durum: form.durum,
       fatura_tarihi: form.fatura_tarihi || null,
       fatura_no: form.fatura_no || null,
       aciklama: form.aciklama || null,
@@ -142,11 +180,8 @@ export default function YolMasraflariPage() {
     loadData();
   }
 
-  async function hizliFaturaToggle(k: Masraf) {
-    const { error } = await supabase
-      .from("yol_masraflari")
-      .update({ fatura_edildi_mi: !k.fatura_edildi_mi })
-      .eq("id", k.id);
+  async function durumDegistir(k: Masraf, yeniDurum: string) {
+    const { error } = await supabase.from("yol_masraflari").update({ durum: yeniDurum }).eq("id", k.id);
     if (error) {
       alert("Güncellenemedi: " + error.message);
       return;
@@ -159,18 +194,27 @@ export default function YolMasraflariPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="font-display text-2xl mb-1">Yol Masrafları</h1>
-          <p className="text-sm text-slate-500">Gidilen firmaya fatura edilip edilmediği takibi</p>
+          <p className="text-sm text-slate-500">Onay akışı: Beklemede → Onaylandı → Faturalandı</p>
         </div>
-        <button className="btn-primary" onClick={handleNewClick}>
-          {showForm ? "Vazgeç" : "+ Masraf ekle"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExcelExport}
+            disabled={gorunenler.length === 0}
+            className="text-sm text-slate-600 border border-line rounded-md px-4 py-2.5 hover:bg-paper disabled:opacity-40"
+          >
+            Excel'e aktar
+          </button>
+          <button className="btn-primary" onClick={handleNewClick}>
+            {showForm ? "Vazgeç" : "+ Masraf ekle"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
         <div className="card p-5">
-          <div className="text-xs text-slate-500 mb-2">Faturalanmamış toplam</div>
+          <div className="text-xs text-slate-500 mb-2">Onay bekleyen toplam</div>
           <div className="odometer text-lg font-semibold inline-block">
-            {faturalanmamisTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+            {bekleyenTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
           </div>
         </div>
         <div className="card p-5">
@@ -182,7 +226,7 @@ export default function YolMasraflariPage() {
       </div>
 
       <div className="flex items-center gap-1 mb-6 border-b border-line">
-        {(["HEPSİ", "FATURALANMADI", "FATURALANDI"] as const).map((f) => (
+        {["HEPSİ", ...DURUMLAR].map((f) => (
           <button
             key={f}
             onClick={() => setFiltre(f)}
@@ -190,7 +234,7 @@ export default function YolMasraflariPage() {
               filtre === f ? "border-navy text-ink font-medium" : "border-transparent text-slate-500 hover:text-ink"
             }`}
           >
-            {f === "HEPSİ" ? "Tümü" : f === "FATURALANMADI" ? "Faturalanmadı" : "Faturalandı"}
+            {f === "HEPSİ" ? "Tümü" : DURUM_ETIKET[f]}
           </button>
         ))}
       </div>
@@ -223,12 +267,11 @@ export default function YolMasraflariPage() {
             <input required type="number" step="0.01" className="input" value={form.tutar}
               onChange={(e) => setForm({ ...form, tutar: e.target.value })} />
           </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-              <input type="checkbox" checked={form.fatura_edildi_mi}
-                onChange={(e) => setForm({ ...form, fatura_edildi_mi: e.target.checked })} />
-              Gidilen firmaya fatura edildi
-            </label>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Durum</label>
+            <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
+              {DURUMLAR.map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
+            </select>
           </div>
           <div>
             <label className="text-xs text-slate-500 block mb-1">Fatura no (opsiyonel)</label>
@@ -265,7 +308,7 @@ export default function YolMasraflariPage() {
               <th className="px-5 py-3 font-normal">Sürücü</th>
               <th className="px-5 py-3 font-normal">Gidilen firma</th>
               <th className="px-5 py-3 font-normal">Tutar</th>
-              <th className="px-5 py-3 font-normal">Fatura durumu</th>
+              <th className="px-5 py-3 font-normal">Durum</th>
               <th className="px-5 py-3 font-normal">Açıklama</th>
               <th className="px-5 py-3 font-normal text-right">İşlemler</th>
             </tr>
@@ -280,15 +323,21 @@ export default function YolMasraflariPage() {
                 <td className="px-5 py-3 text-slate-700">{k.gidilen_firma}</td>
                 <td className="px-5 py-3 font-mono">{Number(k.tutar).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺</td>
                 <td className="px-5 py-3">
-                  <button
-                    onClick={() => hizliFaturaToggle(k)}
-                    className={`badge ${k.fatura_edildi_mi ? "badge-ok" : "badge-danger"}`}
-                    title="Durumu değiştirmek için tıkla"
-                  >
-                    {k.fatura_edildi_mi ? "Faturalandı" : "Faturalanmadı"}
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`badge ${DURUM_BADGE[k.durum] ?? "badge-idle"}`}>{DURUM_ETIKET[k.durum] ?? k.durum}</span>
+                    {SONRAKI_DURUMLAR[k.durum]?.map((sonraki) => (
+                      <button
+                        key={sonraki}
+                        onClick={() => durumDegistir(k, sonraki)}
+                        className="text-[11px] text-slate-400 hover:text-ink border border-line rounded px-1.5 py-0.5"
+                        title={`${DURUM_ETIKET[sonraki]} yap`}
+                      >
+                        → {DURUM_ETIKET[sonraki]}
+                      </button>
+                    ))}
+                  </div>
                 </td>
-                <td className="px-5 py-3 text-slate-500 max-w-[220px] truncate" title={k.aciklama ?? ""}>
+                <td className="px-5 py-3 text-slate-500 max-w-[180px] truncate" title={k.aciklama ?? ""}>
                   {k.aciklama ?? "—"}
                 </td>
                 <td className="px-5 py-3 text-right whitespace-nowrap">

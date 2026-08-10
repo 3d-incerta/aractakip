@@ -3,7 +3,7 @@ import "./globals.css";
 import AuthGate from "@/components/AuthGate";
 
 export const metadata: Metadata = {
-  title: "Filo | Araç Takip Sistemi",
+  title: "3D İnCerTa | Araç Takip Sistemi",
   description: "Kurumsal araç takip, muayene ve yakıt yönetim paneli",
 };
 

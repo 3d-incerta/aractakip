@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { excelIndir } from "@/lib/excelIndir";
 
@@ -88,7 +89,8 @@ function raporYazdir(k: Yakit, plaka: string) {
   pencere.document.close();
 }
 
-export default function YakitPage() {
+function YakitIcerik() {
+  const searchParams = useSearchParams();
   const [kayitlar, setKayitlar] = useState<Yakit[]>([]);
   const [araclar, setAraclar] = useState<AracKisa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,16 @@ export default function YakitPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // QR koddan gelindiyse (?arac=<id>) formu o araç seçili olarak otomatik aç
+  useEffect(() => {
+    const aracIdParam = searchParams.get("arac");
+    if (aracIdParam && araclar.some((a) => a.arac_id === aracIdParam)) {
+      setForm((f) => ({ ...f, arac_id: aracIdParam }));
+      setShowForm(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [araclar]);
 
   function toDatetimeLocal(value: string) {
     const d = new Date(value);
@@ -197,6 +209,28 @@ export default function YakitPage() {
     setSaving(true);
     setError(null);
 
+    // Km geriye gitmesin: bu araç için kayıtlı en yüksek km'den düşük girilemez
+    if (form.km_bilgisi) {
+      const yeniKm = Number(form.km_bilgisi);
+      const { data: enYuksekKayit } = await supabase
+        .from("yakit_kayitlari")
+        .select("km_bilgisi")
+        .eq("arac_id", form.arac_id)
+        .not("km_bilgisi", "is", null)
+        .neq("yakit_id", editingId ?? -1)
+        .order("km_bilgisi", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (enYuksekKayit?.km_bilgisi && yeniKm < enYuksekKayit.km_bilgisi) {
+        setSaving(false);
+        setError(
+          `Km geriye gidemez — bu araç için kayıtlı en son km ${enYuksekKayit.km_bilgisi.toLocaleString("tr-TR")}. Girdiğin değer ondan düşük.`
+        );
+        return;
+      }
+    }
+
     let fisUrl = mevcutFisUrl;
 
     if (fisDosyasi) {
@@ -241,6 +275,15 @@ export default function YakitPage() {
     if (error) {
       setError("Kaydedilemedi: " + error.message);
       return;
+    }
+
+    // Aracın güncel km'sini bu kayıttaki km ile senkron tut (geriye gitmeden)
+    if (form.km_bilgisi) {
+      await supabase
+        .from("araclar")
+        .update({ guncel_km: Number(form.km_bilgisi) })
+        .eq("arac_id", form.arac_id)
+        .lt("guncel_km", Number(form.km_bilgisi));
     }
 
     setSonKayit(data as any);
@@ -336,6 +379,7 @@ export default function YakitPage() {
           <div>
             <label className="text-xs text-slate-500 block mb-1">Tarih</label>
             <input required type="datetime-local" className="input" value={form.tarih}
+              max={new Date().toISOString().slice(0, 16)}
               onChange={(e) => setForm({ ...form, tarih: e.target.value })} />
           </div>
           <div>
@@ -484,3 +528,10 @@ export default function YakitPage() {
   );
 }
 
+export default function YakitPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-slate-500">Yükleniyor...</div>}>
+      <YakitIcerik />
+    </Suspense>
+  );
+}

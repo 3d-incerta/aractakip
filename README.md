@@ -1,4 +1,4 @@
-# Filo — Araç Takip Paneli
+# 3D İnCerTa — Araç Takip Paneli
 
 Next.js 14 + Supabase ile hazırlanmış kurumsal araç takip, muayene ve yakıt yönetim paneli.
 

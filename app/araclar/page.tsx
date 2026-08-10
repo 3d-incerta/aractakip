@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { excelIndir } from "@/lib/excelIndir";
 
 type Arac = {
   arac_id: string;
@@ -14,6 +15,8 @@ type Arac = {
   durum: string;
   sorumlu_surucu_id: string | null;
   firma: string | null;
+  son_bakim_km: number | null;
+  bakim_araligi_km: number | null;
 };
 
 type SurucuKisa = { surucu_id: string; ad: string; soyad: string };
@@ -39,6 +42,8 @@ const BOS_FORM = {
   guncel_km: "",
   sorumlu_surucu_id: "",
   firma: "",
+  son_bakim_km: "",
+  bakim_araligi_km: "10000",
 };
 
 export default function AraclarPage() {
@@ -58,7 +63,7 @@ export default function AraclarPage() {
     const [{ data: a, error }, { data: p }] = await Promise.all([
       supabase
         .from("araclar")
-        .select("arac_id, plaka, marka, model, model_yili, yakit_tipi, guncel_km, durum, sorumlu_surucu_id, firma")
+        .select("arac_id, plaka, marka, model, model_yili, yakit_tipi, guncel_km, durum, sorumlu_surucu_id, firma, son_bakim_km, bakim_araligi_km")
         .order("plaka", { ascending: true }),
       supabase.from("suruculer").select("surucu_id, ad, soyad").order("ad"),
     ]);
@@ -70,6 +75,15 @@ export default function AraclarPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  function bakimDurumu(a: Arac): { label: string; cls: string } | null {
+    if (!a.son_bakim_km || !a.bakim_araligi_km || !a.guncel_km) return null;
+    const hedefKm = a.son_bakim_km + a.bakim_araligi_km;
+    const kalan = hedefKm - a.guncel_km;
+    if (kalan <= 0) return { label: "Bakım zamanı geldi", cls: "badge-danger" };
+    if (kalan <= 1000) return { label: `${kalan.toLocaleString("tr-TR")} km kaldı`, cls: "badge-warn" };
+    return { label: "Uygun", cls: "badge-ok" };
+  }
 
   function personelAdi(surucuId: string | null) {
     if (!surucuId) return "—";
@@ -89,9 +103,58 @@ export default function AraclarPage() {
       guncel_km: a.guncel_km ? String(a.guncel_km) : "",
       sorumlu_surucu_id: a.sorumlu_surucu_id ?? "",
       firma: a.firma ?? "",
+      son_bakim_km: a.son_bakim_km ? String(a.son_bakim_km) : "",
+      bakim_araligi_km: a.bakim_araligi_km ? String(a.bakim_araligi_km) : "10000",
     });
     setShowForm(true);
     setError(null);
+  }
+
+  function handleQrYazdir(a: Arac) {
+    const url = `${window.location.origin}/yakit?arac=${a.arac_id}`;
+    const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
+    const pencere = window.open("", "_blank", "width=380,height=520");
+    if (!pencere) return;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <head>
+        <meta charset="UTF-8" />
+        <title>QR - ${a.plaka}</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 32px; color: #101827; }
+          h1 { font-family: monospace; font-size: 22px; letter-spacing: 0.05em; margin: 0 0 4px; }
+          .sub { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+          img { border: 1px solid #e4e7eb; border-radius: 8px; }
+          .not { margin-top: 20px; font-size: 11px; color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <h1>${a.plaka}</h1>
+        <div class="sub">3D İnCerTa — Yakıt kaydı için okut</div>
+        <img src="${qrImgSrc}" width="280" height="280" />
+        <div class="not">Bu kodu okutunca doğrudan bu aracın yakıt kayıt formu açılır.</div>
+        <script>window.onload = () => window.print();</script>
+      </body>
+      </html>
+    `;
+    pencere.document.write(html);
+    pencere.document.close();
+  }
+
+  function handleExcelExport() {
+    const veri = araclar.map((a) => ({
+      Plaka: a.plaka,
+      Marka: a.marka,
+      Model: a.model,
+      Yıl: a.model_yili ?? "",
+      Yakıt: a.yakit_tipi,
+      "Güncel Km": a.guncel_km ?? 0,
+      Firma: a.firma ?? "",
+      "Zimmetli Personel": personelAdi(a.sorumlu_surucu_id),
+      Durum: a.durum,
+    }));
+    excelIndir(veri, "araclar", "Araçlar");
   }
 
   function handleNewClick() {
@@ -122,6 +185,8 @@ export default function AraclarPage() {
       guncel_km: form.guncel_km ? Number(form.guncel_km) : 0,
       sorumlu_surucu_id: form.sorumlu_surucu_id || null,
       firma: form.firma || null,
+      son_bakim_km: form.son_bakim_km ? Number(form.son_bakim_km) : null,
+      bakim_araligi_km: form.bakim_araligi_km ? Number(form.bakim_araligi_km) : 10000,
     };
 
     const { error } = editingId
@@ -158,9 +223,18 @@ export default function AraclarPage() {
           <h1 className="font-display text-2xl mb-1">Araçlar</h1>
           <p className="text-sm text-slate-500">3D İnCerTa'daki tüm araçlar</p>
         </div>
-        <button className="btn-primary" onClick={handleNewClick}>
-          {showForm ? "Vazgeç" : "+ Araç ekle"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExcelExport}
+            disabled={araclar.length === 0}
+            className="text-sm text-slate-600 border border-line rounded-md px-4 py-2.5 hover:bg-paper disabled:opacity-40"
+          >
+            Excel'e aktar
+          </button>
+          <button className="btn-primary" onClick={handleNewClick}>
+            {showForm ? "Vazgeç" : "+ Araç ekle"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -213,6 +287,16 @@ export default function AraclarPage() {
               onChange={(e) => setForm({ ...form, firma: e.target.value })} placeholder="örn. 3D İnCerTa" />
           </div>
           <div>
+            <label className="text-xs text-slate-500 block mb-1">Son bakım km</label>
+            <input type="number" className="input" value={form.son_bakim_km}
+              onChange={(e) => setForm({ ...form, son_bakim_km: e.target.value })} placeholder="örn. 78000" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Bakım aralığı (km)</label>
+            <input type="number" className="input" value={form.bakim_araligi_km}
+              onChange={(e) => setForm({ ...form, bakim_araligi_km: e.target.value })} placeholder="10000" />
+          </div>
+          <div>
             <label className="text-xs text-slate-500 block mb-1">Zimmetli personel</label>
             <select className="input" value={form.sorumlu_surucu_id}
               onChange={(e) => setForm({ ...form, sorumlu_surucu_id: e.target.value })}>
@@ -245,6 +329,7 @@ export default function AraclarPage() {
               <th className="px-5 py-3 font-normal">Km</th>
               <th className="px-5 py-3 font-normal">Firma</th>
               <th className="px-5 py-3 font-normal">Zimmetli</th>
+              <th className="px-5 py-3 font-normal">Bakım</th>
               <th className="px-5 py-3 font-normal">Durum</th>
               <th className="px-5 py-3 font-normal text-right">İşlemler</th>
             </tr>
@@ -262,9 +347,18 @@ export default function AraclarPage() {
                 <td className="px-5 py-3 text-slate-600">{a.firma ?? "—"}</td>
                 <td className="px-5 py-3 text-slate-600">{personelAdi(a.sorumlu_surucu_id)}</td>
                 <td className="px-5 py-3">
+                  {(() => {
+                    const b = bakimDurumu(a);
+                    return b ? <span className={`badge ${b.cls}`}>{b.label}</span> : <span className="text-slate-300 text-xs">—</span>;
+                  })()}
+                </td>
+                <td className="px-5 py-3">
                   <span className={`badge ${DURUM_BADGE[a.durum] ?? "badge-idle"}`}>{a.durum}</span>
                 </td>
                 <td className="px-5 py-3 text-right whitespace-nowrap">
+                  <button onClick={() => handleQrYazdir(a)} className="text-xs text-amber hover:opacity-70 mr-4">
+                    QR
+                  </button>
                   <button onClick={() => handleEditClick(a)} className="text-xs text-slate-500 hover:text-ink mr-4">
                     Düzenle
                   </button>

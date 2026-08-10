@@ -7,19 +7,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        navy: "#0B1220",
-        navy2: "#111B30",
+        navy: "#1F2937",
+        navy2: "#111827",
         ink: "#101827",
-        paper: "#F6F7F9",
-        line: "#E4E7EC",
-        amber: "#F5A623",
+        paper: "#F7F8FA",
+        line: "#E5E7EB",
+        amber: "#B4821F",
         teal: "#157A6E",
-        red: "#D64545",
+        red: "#B32D2D",
       },
       fontFamily: {
-        display: ['"Space Grotesk"', "sans-serif"],
+        display: ["Inter", "sans-serif"],
         sans: ["Inter", "sans-serif"],
-        mono: ['"JetBrains Mono"', "monospace"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
     },
   },

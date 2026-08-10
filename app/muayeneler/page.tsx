@@ -162,6 +162,7 @@ export default function MuayenelerPage() {
           <div>
             <label className="text-xs text-slate-500 block mb-1">Muayene tarihi</label>
             <input required type="date" className="input" value={form.muayene_tarihi}
+              max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => setForm({ ...form, muayene_tarihi: e.target.value })} />
           </div>
           <div>
