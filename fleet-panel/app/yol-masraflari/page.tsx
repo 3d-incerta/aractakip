@@ -43,6 +43,16 @@ const SONRAKI_DURUMLAR: Record<string, string[]> = {
   FATURALANDI: [],
 };
 
+// Muhasebe Sorumlusu faturalandıramaz — sadece Yönetici ve Muhasebe ve
+// Finans Müdürü nihai faturalama onayı verebilir
+function sonrakiDurumlarGetir(durum: string, rol: string | null) {
+  const tumSecenekler = SONRAKI_DURUMLAR[durum] ?? [];
+  if (rol === "MUHASEBE") {
+    return tumSecenekler.filter((d) => d !== "FATURALANDI");
+  }
+  return tumSecenekler;
+}
+
 const BOS_FORM = {
   surucu_id: "",
   gidilen_firma: "",
@@ -64,8 +74,9 @@ export default function YolMasraflariPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<string>("HEPSİ");
-  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe değilse true
+  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe/finans değilse true
   const [kendiSurucuId, setKendiSurucuId] = useState<string | null>(null);
+  const [kendiRol, setKendiRol] = useState<string | null>(null); // null = Yönetici; "MUHASEBE" | "FINANS" | "SURUCU"
 
   const [form, setForm] = useState(BOS_FORM);
 
@@ -85,7 +96,10 @@ export default function YolMasraflariPage() {
         .maybeSingle();
       if (kendiKayit) {
         benimSurucuId = kendiKayit.surucu_id;
+        setKendiRol(kendiKayit.rol);
         yetkiliMi = kendiKayit.rol === "MUHASEBE" || kendiKayit.rol === "FINANS";
+      } else {
+        setKendiRol(null);
       }
     }
     setKendiSurucuId(benimSurucuId);
@@ -307,7 +321,7 @@ export default function YolMasraflariPage() {
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Durum</label>
                 <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
-                  {DURUMLAR.map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
+                  {DURUMLAR.filter((d) => !(kendiRol === "MUHASEBE" && d === "FATURALANDI")).map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
                 </select>
               </div>
               <div>
@@ -367,7 +381,7 @@ export default function YolMasraflariPage() {
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`badge ${DURUM_BADGE[k.durum] ?? "badge-idle"}`}>{DURUM_ETIKET[k.durum] ?? k.durum}</span>
-                    {!surucuMu && SONRAKI_DURUMLAR[k.durum]?.map((sonraki) => (
+                    {!surucuMu && sonrakiDurumlarGetir(k.durum, kendiRol).map((sonraki) => (
                       <button
                         key={sonraki}
                         onClick={() => durumDegistir(k, sonraki)}

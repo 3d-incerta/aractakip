@@ -54,14 +54,12 @@ export default function PersonelPage() {
         .select("rol")
         .eq("kullanici_id", userId)
         .maybeSingle();
-      // suruculer'de kaydı yoksa yönetici demektir; kaydı varsa sadece
-      // MUHASEBE/FINANS yönetim yapabilir, SURUCU yapamaz
-      // suruculer tablosunda ekleme/silme sadece gerçek Yönetici'ye
-      // (suruculer'de hiç kaydı olmayana) açık — Muhasebe/Finans da salt okunur
-      if (kendiKayit) {
-        setYonetimYapabilir(false);
-      } else {
+      // Yönetici (kaydı yok) ve Muhasebe ve Finans Müdürü tam yetkili;
+      // Muhasebe Sorumlusu ve Sürücü salt okunur / kısıtlı
+      if (!kendiKayit || kendiKayit.rol === "FINANS") {
         setYonetimYapabilir(true);
+      } else {
+        setYonetimYapabilir(false);
       }
     }
 

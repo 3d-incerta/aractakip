@@ -45,9 +45,9 @@ const NAV_SURUCU = [
 ];
 
 function navSec(rol: Rol) {
-  if (rol === "MUHASEBE" || rol === "FINANS") return NAV_MUHASEBE;
+  if (rol === "MUHASEBE") return NAV_MUHASEBE;
   if (rol === "SURUCU") return NAV_SURUCU;
-  return NAV_YONETICI;
+  return NAV_YONETICI; // YONETICI ve FINANS — tam menü
 }
 
 const ROL_ETIKET: Record<Rol, string> = {
