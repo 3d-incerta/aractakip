@@ -218,7 +218,7 @@ export default function YolMasraflariPage() {
           <h1 className="font-display text-2xl mb-1">Yol Masrafları</h1>
           <p className="text-sm text-slate-500">
             {surucuMu
-              ? "Girdiğin masraflar onay için Muhasebe / Finans Sorumlusuna gider"
+              ? "Girdiğin masraflar onay için Muhasebe / Muhasebe ve Finans Müdürüne gider"
               : "Onay akışı: Beklemede → Onaylandı → Faturalandı"}
           </p>
         </div>

@@ -49,7 +49,7 @@ function navSec(rol: Rol) {
 const ROL_ETIKET: Record<Rol, string> = {
   YONETICI: "Yönetici",
   MUHASEBE: "Muhasebe Sorumlusu",
-  FINANS: "Finans Sorumlusu",
+  FINANS: "Muhasebe ve Finans Müdürü",
   SURUCU: "Sürücü",
 };
 

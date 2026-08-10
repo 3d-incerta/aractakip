@@ -55,11 +55,30 @@ export default function AraclarPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [yonetimYapabilir, setYonetimYapabilir] = useState(true); // sürücü rolü değilse true
 
   const [form, setForm] = useState(BOS_FORM);
 
   async function loadData() {
     setLoading(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (userId) {
+      const { data: kendiKayit } = await supabase
+        .from("suruculer")
+        .select("rol")
+        .eq("kullanici_id", userId)
+        .maybeSingle();
+      // araclar/suruculer tablosunda ekleme/silme sadece gerçek Yönetici'ye
+      // (suruculer'de hiç kaydı olmayana) açık — Muhasebe/Finans da salt okunur
+      if (kendiKayit) {
+        setYonetimYapabilir(false);
+      } else {
+        setYonetimYapabilir(true);
+      }
+    }
+
     const [{ data: a, error }, { data: p }] = await Promise.all([
       supabase
         .from("araclar")
@@ -231,13 +250,15 @@ export default function AraclarPage() {
           >
             Excel'e aktar
           </button>
-          <button className="btn-primary" onClick={handleNewClick}>
-            {showForm ? "Vazgeç" : "+ Araç ekle"}
-          </button>
+          {yonetimYapabilir && (
+            <button className="btn-primary" onClick={handleNewClick}>
+              {showForm ? "Vazgeç" : "+ Araç ekle"}
+            </button>
+          )}
         </div>
       </div>
 
-      {showForm && (
+      {showForm && yonetimYapabilir && (
         <form onSubmit={handleSubmit} className="card p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-3 text-xs font-mono uppercase tracking-widest text-slate-400">
             {editingId ? "Aracı düzenle" : "Yeni araç"}
@@ -359,16 +380,20 @@ export default function AraclarPage() {
                   <button onClick={() => handleQrYazdir(a)} className="text-xs text-amber hover:opacity-70 mr-4">
                     QR
                   </button>
-                  <button onClick={() => handleEditClick(a)} className="text-xs text-slate-500 hover:text-ink mr-4">
-                    Düzenle
-                  </button>
-                  <button
-                    onClick={() => handleDelete(a)}
-                    disabled={deletingId === a.arac_id}
-                    className="text-xs text-red hover:opacity-70 disabled:opacity-40"
-                  >
-                    {deletingId === a.arac_id ? "Siliniyor..." : "Sil"}
-                  </button>
+                  {yonetimYapabilir && (
+                    <>
+                      <button onClick={() => handleEditClick(a)} className="text-xs text-slate-500 hover:text-ink mr-4">
+                        Düzenle
+                      </button>
+                      <button
+                        onClick={() => handleDelete(a)}
+                        disabled={deletingId === a.arac_id}
+                        className="text-xs text-red hover:opacity-70 disabled:opacity-40"
+                      >
+                        {deletingId === a.arac_id ? "Siliniyor..." : "Sil"}
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
