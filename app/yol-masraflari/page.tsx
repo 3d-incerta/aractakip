@@ -164,15 +164,24 @@ export default function YolMasraflariPage() {
     setSaving(true);
     setError(null);
 
-    const payload = surucuMu
+    const payload: {
+      surucu_id: string | null;
+      gidilen_firma: string;
+      tarih: string;
+      tutar: number;
+      durum: string;
+      fatura_tarihi: string | null;
+      fatura_no: string | null;
+      aciklama: string | null;
+    } = surucuMu
       ? {
           surucu_id: kendiSurucuId,
           gidilen_firma: form.gidilen_firma,
           tarih: form.tarih,
           tutar: Number(form.tutar),
           durum: "BEKLEMEDE",
-          fatura_tarihi: null as string | null,
-          fatura_no: null as string | null,
+          fatura_tarihi: null,
+          fatura_no: null,
           aciklama: form.aciklama || null,
         }
       : {
