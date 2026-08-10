@@ -11,30 +11,35 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<any>(null);
   const [rol, setRol] = useState<Rol>("YONETICI");
+  const [adSoyad, setAdSoyad] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  async function rolBelirle(userId: string) {
+  async function kullaniciBilgisiGetir(userId: string) {
     const { data } = await supabase
       .from("suruculer")
-      .select("rol")
+      .select("rol, ad, soyad")
       .eq("kullanici_id", userId)
       .maybeSingle();
 
-    if (!data) return "YONETICI" as Rol;
-    if (data.rol === "MUHASEBE") return "MUHASEBE" as Rol;
-    if (data.rol === "FINANS") return "FINANS" as Rol;
-    return "SURUCU" as Rol;
+    if (!data) return { rol: "YONETICI" as Rol, adSoyad: null as string | null };
+
+    let r: Rol = "SURUCU";
+    if (data.rol === "MUHASEBE") r = "MUHASEBE";
+    else if (data.rol === "FINANS") r = "FINANS";
+
+    return { rol: r, adSoyad: `${data.ad} ${data.soyad}` };
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       if (data.session) {
-        const r = await rolBelirle(data.session.user.id);
-        setRol(r);
+        const bilgi = await kullaniciBilgisiGetir(data.session.user.id);
+        setRol(bilgi.rol);
+        setAdSoyad(bilgi.adSoyad);
         // Sürücülerin varsayılan iniş sayfası dashboard değil, Araçlar olsun
-        if (r === "SURUCU" && pathname === "/") {
+        if (bilgi.rol === "SURUCU" && pathname === "/") {
           router.replace("/araclar");
         }
       }
@@ -47,8 +52,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
       if (newSession) {
-        const r = await rolBelirle(newSession.user.id);
-        setRol(r);
+        const bilgi = await kullaniciBilgisiGetir(newSession.user.id);
+        setRol(bilgi.rol);
+        setAdSoyad(bilgi.adSoyad);
       }
       if (!newSession && pathname !== "/login") {
         router.replace("/login");
@@ -77,7 +83,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar userEmail={session.user?.email} rol={rol} />
+      <Sidebar userEmail={session.user?.email} userName={adSoyad} rol={rol} />
       <main className="flex-1 bg-paper min-h-screen">{children}</main>
     </div>
   );

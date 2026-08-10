@@ -19,6 +19,7 @@ type Yakit = {
   istasyon_adi: string | null;
   yapilan_is: string | null;
   fis_gorseli_url: string | null;
+  fatura_edildi_mi: boolean;
   araclar: { plaka: string } | null;
 };
 
@@ -113,7 +114,7 @@ function YakitIcerik() {
     const [{ data: y }, { data: a }] = await Promise.all([
       supabase
         .from("yakit_kayitlari")
-        .select("yakit_id, arac_id, tarih, yakit_turu, litre, birim_fiyat, toplam_tutar, km_bilgisi, istasyon_adi, yapilan_is, fis_gorseli_url, araclar(plaka)")
+        .select("yakit_id, arac_id, tarih, yakit_turu, litre, birim_fiyat, toplam_tutar, km_bilgisi, istasyon_adi, yapilan_is, fis_gorseli_url, fatura_edildi_mi, araclar(plaka)")
         .order("tarih", { ascending: false })
         .limit(100),
       supabase.from("araclar").select("arac_id, plaka").order("plaka"),
@@ -180,6 +181,7 @@ function YakitIcerik() {
       Km: k.km_bilgisi ?? "",
       İstasyon: k.istasyon_adi ?? "",
       "Yapılan İş": k.yapilan_is ?? "",
+      "Fatura Durumu": k.fatura_edildi_mi ? "Faturalandı" : "Faturalanmadı",
     }));
     excelIndir(veri, "yakit-kayitlari", "Yakıt");
   }
@@ -288,6 +290,18 @@ function YakitIcerik() {
 
     setSonKayit(data as any);
     handleCancel();
+    loadData();
+  }
+
+  async function faturaDurumDegistir(k: Yakit) {
+    const { error } = await supabase
+      .from("yakit_kayitlari")
+      .update({ fatura_edildi_mi: !k.fatura_edildi_mi })
+      .eq("yakit_id", k.yakit_id);
+    if (error) {
+      alert("Güncellenemedi: " + error.message);
+      return;
+    }
     loadData();
   }
 
@@ -458,6 +472,7 @@ function YakitIcerik() {
               <th className="px-5 py-3 font-normal">Litre</th>
               <th className="px-5 py-3 font-normal">Toplam</th>
               <th className="px-5 py-3 font-normal">Yapılan iş</th>
+              <th className="px-5 py-3 font-normal">Fatura</th>
               <th className="px-5 py-3 font-normal text-right">İşlemler</th>
             </tr>
           </thead>
@@ -487,6 +502,15 @@ function YakitIcerik() {
                 <td className="px-5 py-3 font-mono">{Number(k.toplam_tutar).toFixed(2)} ₺</td>
                 <td className="px-5 py-3 text-slate-500 max-w-[160px] truncate" title={k.yapilan_is ?? ""}>
                   {k.yapilan_is || "—"}
+                </td>
+                <td className="px-5 py-3">
+                  <button
+                    onClick={() => faturaDurumDegistir(k)}
+                    className={`badge ${k.fatura_edildi_mi ? "badge-ok" : "badge-idle"}`}
+                    title="Fatura durumunu değiştirmek için tıkla"
+                  >
+                    {k.fatura_edildi_mi ? "Faturalandı" : "Faturalanmadı"}
+                  </button>
                 </td>
                 <td className="px-5 py-3 text-right whitespace-nowrap">
                   <button

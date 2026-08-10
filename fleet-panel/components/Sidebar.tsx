@@ -53,7 +53,7 @@ const ROL_ETIKET: Record<Rol, string> = {
   SURUCU: "Sürücü",
 };
 
-export default function Sidebar({ userEmail, rol }: { userEmail?: string; rol: Rol }) {
+export default function Sidebar({ userEmail, userName, rol }: { userEmail?: string; userName?: string | null; rol: Rol }) {
   const pathname = usePathname();
   const router = useRouter();
   const navItems = navSec(rol);
@@ -98,6 +98,9 @@ export default function Sidebar({ userEmail, rol }: { userEmail?: string; rol: R
         <div className="text-[10px] font-mono uppercase tracking-widest text-amber mb-2">
           {ROL_ETIKET[rol]}
         </div>
+        {userName ? (
+          <div className="text-sm text-white truncate mb-0.5 font-medium">{userName}</div>
+        ) : null}
         {userEmail && (
           <div className="text-xs text-slate-500 truncate mb-2 font-mono">{userEmail}</div>
         )}

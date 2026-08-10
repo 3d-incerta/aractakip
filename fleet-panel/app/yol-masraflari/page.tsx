@@ -164,25 +164,16 @@ export default function YolMasraflariPage() {
     setSaving(true);
     setError(null);
 
-    const payload = surucuMu
-      ? {
-          surucu_id: kendiSurucuId,
-          gidilen_firma: form.gidilen_firma,
-          tarih: form.tarih,
-          tutar: Number(form.tutar),
-          durum: "BEKLEMEDE",
-          aciklama: form.aciklama || null,
-        }
-      : {
-          surucu_id: form.surucu_id || null,
-          gidilen_firma: form.gidilen_firma,
-          tarih: form.tarih,
-          tutar: Number(form.tutar),
-          durum: form.durum,
-          fatura_tarihi: form.fatura_tarihi || null,
-          fatura_no: form.fatura_no || null,
-          aciklama: form.aciklama || null,
-        };
+    const payload = {
+      surucu_id: surucuMu ? kendiSurucuId : (form.surucu_id || null),
+      gidilen_firma: form.gidilen_firma,
+      tarih: form.tarih,
+      tutar: Number(form.tutar),
+      durum: surucuMu ? "BEKLEMEDE" : form.durum,
+      fatura_tarihi: surucuMu ? null : (form.fatura_tarihi || null),
+      fatura_no: surucuMu ? null : (form.fatura_no || null),
+      aciklama: form.aciklama || null,
+    };
 
     const { error } = editingId
       ? await supabase.from("yol_masraflari").update(payload).eq("id", editingId)
