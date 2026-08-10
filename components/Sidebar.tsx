@@ -19,6 +19,7 @@ const NAV_YONETICI = [
   { href: "/yakit", label: "Yakıt" },
   { href: "/analiz", label: "Analiz" },
   { href: "/rapor", label: "Aylık Rapor" },
+  { href: "/mesajlar", label: "Mesajlar" },
   { href: "/denetim", label: "Denetim" },
 ];
 
@@ -28,6 +29,7 @@ const NAV_MUHASEBE = [
   { href: "/rapor", label: "Aylık Rapor" },
   { href: "/yol-masraflari", label: "Yol Masrafları" },
   { href: "/belgeler", label: "Belgeler" },
+  { href: "/mesajlar", label: "Mesajlar" },
   { href: "/denetim", label: "Denetim" },
 ];
 
@@ -39,6 +41,7 @@ const NAV_SURUCU = [
   { href: "/yakit", label: "Yakıt" },
   { href: "/yol-masraflari", label: "Yol Masrafları" },
   { href: "/belgeler", label: "Belgeler" },
+  { href: "/mesajlar", label: "Mesajlar" },
 ];
 
 function navSec(rol: Rol) {
