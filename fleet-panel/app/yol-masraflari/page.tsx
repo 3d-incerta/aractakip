@@ -46,11 +46,8 @@ const SONRAKI_DURUMLAR: Record<string, string[]> = {
 // Muhasebe Sorumlusu faturalandıramaz — sadece Yönetici ve Muhasebe ve
 // Finans Müdürü nihai faturalama onayı verebilir
 function sonrakiDurumlarGetir(durum: string, rol: string | null) {
-  const tumSecenekler = SONRAKI_DURUMLAR[durum] ?? [];
-  if (rol === "MUHASEBE") {
-    return tumSecenekler.filter((d) => d !== "FATURALANDI");
-  }
-  return tumSecenekler;
+  // Hem Muhasebe Sorumlusu hem Muhasebe ve Finans Müdürü faturalandırabilir
+  return SONRAKI_DURUMLAR[durum] ?? [];
 }
 
 const BOS_FORM = {
@@ -321,7 +318,7 @@ export default function YolMasraflariPage() {
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Durum</label>
                 <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
-                  {DURUMLAR.filter((d) => !(kendiRol === "MUHASEBE" && d === "FATURALANDI")).map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
+                  {DURUMLAR.map((d) => <option key={d} value={d}>{DURUM_ETIKET[d]}</option>)}
                 </select>
               </div>
               <div>

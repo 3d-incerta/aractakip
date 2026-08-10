@@ -35,11 +35,24 @@ export default function IsKayitlariPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [salTOkunur, setSalTOkunur] = useState(false); // Muhasebe Sorumlusu için
 
   const [form, setForm] = useState(BOS_FORM);
 
   async function loadData() {
     setLoading(true);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (userId) {
+      const { data: kendiKayit } = await supabase
+        .from("suruculer")
+        .select("rol")
+        .eq("kullanici_id", userId)
+        .maybeSingle();
+      setSalTOkunur(kendiKayit?.rol === "MUHASEBE");
+    }
+
     const [{ data: k }, { data: s }, { data: a }] = await Promise.all([
       supabase
         .from("is_kayitlari")
@@ -132,12 +145,14 @@ export default function IsKayitlariPage() {
           <h1 className="font-display text-2xl mb-1">Gidilen İşler</h1>
           <p className="text-sm text-slate-500">Sürücülerin hangi firmaya, ne zaman gittiği</p>
         </div>
-        <button className="btn-primary" onClick={handleNewClick}>
-          {showForm ? "Vazgeç" : "+ Kayıt ekle"}
-        </button>
+        {!salTOkunur && (
+          <button className="btn-primary" onClick={handleNewClick}>
+            {showForm ? "Vazgeç" : "+ Kayıt ekle"}
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && !salTOkunur && (
         <form onSubmit={handleSubmit} className="card p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-3 text-xs font-mono uppercase tracking-widest text-slate-400">
             {editingId ? "Kaydı düzenle" : "Yeni kayıt"}
@@ -194,7 +209,7 @@ export default function IsKayitlariPage() {
               <th className="px-5 py-3 font-normal">Gidilen firma</th>
               <th className="px-5 py-3 font-normal">Araç</th>
               <th className="px-5 py-3 font-normal">Açıklama</th>
-              <th className="px-5 py-3 font-normal text-right">İşlemler</th>
+              {!salTOkunur && <th className="px-5 py-3 font-normal text-right">İşlemler</th>}
             </tr>
           </thead>
           <tbody>
@@ -209,18 +224,20 @@ export default function IsKayitlariPage() {
                 <td className="px-5 py-3 text-slate-500 max-w-[220px] truncate" title={k.aciklama ?? ""}>
                   {k.aciklama ?? "—"}
                 </td>
-                <td className="px-5 py-3 text-right whitespace-nowrap">
-                  <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
-                    Düzenle
-                  </button>
-                  <button
-                    onClick={() => handleDelete(k)}
-                    disabled={deletingId === k.id}
-                    className="text-xs text-red hover:opacity-70 disabled:opacity-40"
-                  >
-                    {deletingId === k.id ? "Siliniyor..." : "Sil"}
-                  </button>
-                </td>
+                {!salTOkunur && (
+                  <td className="px-5 py-3 text-right whitespace-nowrap">
+                    <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
+                      Düzenle
+                    </button>
+                    <button
+                      onClick={() => handleDelete(k)}
+                      disabled={deletingId === k.id}
+                      className="text-xs text-red hover:opacity-70 disabled:opacity-40"
+                    >
+                      {deletingId === k.id ? "Siliniyor..." : "Sil"}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

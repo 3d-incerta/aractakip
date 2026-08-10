@@ -27,6 +27,7 @@ const NAV_MUHASEBE = [
   { href: "/", label: "Panel" },
   { href: "/analiz", label: "Analiz" },
   { href: "/rapor", label: "Aylık Rapor" },
+  { href: "/is-kayitlari", label: "Gidilen İşler" },
   { href: "/yol-masraflari", label: "Yol Masrafları" },
   { href: "/belgeler", label: "Belgeler" },
   { href: "/mesajlar", label: "Mesajlar" },
