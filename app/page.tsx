@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 type YaklasanMuayene = {
@@ -126,29 +127,29 @@ export default function DashboardPage() {
 
       {/* İSTATİSTİK KARTLARI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-        <div className="lux-stat-card">
+        <Link href="/araclar" className="lux-stat-card block cursor-pointer">
           <div className="lux-stat-icon"><IconArac /></div>
           <div className="lux-stat-value">{loading ? "—" : aracSayisi ?? 0}</div>
           <div className="lux-stat-label">Aktif araç</div>
-        </div>
-        <div className="lux-stat-card">
+        </Link>
+        <Link href="/personel" className="lux-stat-card block cursor-pointer">
           <div className="lux-stat-icon"><IconKullanici /></div>
           <div className="lux-stat-value">{loading ? "—" : surucuSayisi ?? 0}</div>
           <div className="lux-stat-label">Aktif sürücü</div>
-        </div>
-        <div className="lux-stat-card">
+        </Link>
+        <Link href="/muayeneler" className="lux-stat-card block cursor-pointer">
           <div className="lux-stat-icon"><IconTakvim /></div>
           <div className="lux-stat-value">{loading ? "—" : yaklasanSayisi ?? 0}</div>
           <div className="lux-stat-label">Yaklaşan muayene (30 gün)</div>
-        </div>
-        <div className="lux-stat-card">
+        </Link>
+        <Link href="/yakit" className="lux-stat-card block cursor-pointer">
           <div className="lux-stat-icon"><IconElmas /></div>
           <div className="lux-stat-value">
             {loading ? "—" : (buAyYakit ?? 0).toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
             <span className="text-base align-top ml-1">₺</span>
           </div>
           <div className="lux-stat-label">Bu ay yakıt gideri</div>
-        </div>
+        </Link>
       </div>
 
       {/* YAKLAŞAN MUAYENELER */}
