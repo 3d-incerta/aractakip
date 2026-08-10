@@ -277,7 +277,7 @@ export default function PersonelPage() {
         {!loading && personel.length === 0 && (
           <div className="px-5 py-10 text-sm text-slate-500 text-center">Henüz personel eklenmemiş.</div>
         )}
-        {loading && <div className="px-5 py-10 text-sm text-slate-500 text-center">Yükleniyor...</div>}
+        {loading && <div className="px-5 py-10 text-sm text-slate-500 text-center animate-pulse">Yükleniyor...</div>}
       </div>
     </div>
   );

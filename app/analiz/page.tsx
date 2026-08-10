@@ -141,6 +141,12 @@ export default function AnalizPage() {
             </div>
             <ResponsiveContainer width="100%" height={Math.max(220, gorunenler.length * 34)}>
               <BarChart data={grafikVerisi} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <defs>
+                  <linearGradient id="analizBarGradyan" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#374151" />
+                    <stop offset="100%" stopColor="#111827" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E7EC" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} />
                 <YAxis dataKey="plaka" type="category" tick={{ fontSize: 11, fill: "#101827" }} width={80} />
@@ -148,7 +154,7 @@ export default function AnalizPage() {
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E4E7EC" }}
                   formatter={(v: number) => [`${v} L/100km`, "Tüketim"]}
                 />
-                <Bar dataKey="L/100km" fill="#1F2937" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="L/100km" fill="url(#analizBarGradyan)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

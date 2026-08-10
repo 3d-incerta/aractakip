@@ -244,6 +244,12 @@ export default function RaporPage() {
             </div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={grafikVerisi} margin={{ left: 0, right: 10 }}>
+                <defs>
+                  <linearGradient id="raporBarGradyan" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1c8f80" />
+                    <stop offset="100%" stopColor="#157A6E" />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E7EC" vertical={false} />
                 <XAxis dataKey="ay" tick={{ fontSize: 11, fill: "#64748b" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
@@ -251,7 +257,7 @@ export default function RaporPage() {
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E4E7EC" }}
                   formatter={(v: number) => [`${v.toLocaleString("tr-TR")} km`, "Km"]}
                 />
-                <Bar dataKey="Km" fill="#157A6E" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Km" fill="url(#raporBarGradyan)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

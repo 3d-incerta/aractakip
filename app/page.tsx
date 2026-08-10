@@ -99,7 +99,7 @@ export default function DashboardPage() {
         </div>
         {yaklasanListe.length === 0 ? (
           <div className="px-5 py-8 text-sm text-slate-500 text-center">
-            {loading ? "Yükleniyor..." : "Önümüzdeki 30 gün içinde muayenesi dolan araç yok."}
+            {loading ? <span className="animate-pulse">Yükleniyor...</span> : "Önümüzdeki 30 gün içinde muayenesi dolan araç yok."}
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -143,7 +143,7 @@ export default function DashboardPage() {
         </div>
         {bakimListe.length === 0 ? (
           <div className="px-5 py-8 text-sm text-slate-500 text-center">
-            {loading ? "Yükleniyor..." : "Yakın zamanda bakımı gereken araç yok."}
+            {loading ? <span className="animate-pulse">Yükleniyor...</span> : "Yakın zamanda bakımı gereken araç yok."}
           </div>
         ) : (
           <table className="w-full text-sm">
