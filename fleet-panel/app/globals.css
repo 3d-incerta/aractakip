@@ -1,0 +1,144 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #f7f8fa;
+  color: #101827;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.font-mono, .odometer, table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sade istatistik göstergesi — düz kart üzerinde büyük, koyu renk sayı */
+.odometer {
+  color: #101827;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge-ok::before { background: #157a6e; }
+.badge-warn::before { background: #b4821f; }
+.badge-danger::before { background: #b32d2d; }
+.badge-idle::before { background: #94a3b8; }
+
+.badge-ok {
+  background: rgba(21, 122, 110, 0.1);
+  color: #157a6e;
+}
+
+.badge-warn {
+  background: rgba(180, 130, 20, 0.12);
+  color: #92600f;
+}
+
+.badge-danger {
+  background: rgba(180, 45, 45, 0.1);
+  color: #b32d2d;
+}
+
+.badge-idle {
+  background: rgba(16, 24, 39, 0.06);
+  color: #475467;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.03);
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.input:focus {
+  outline: 2px solid #1f2937;
+  outline-offset: 1px;
+}
+
+.btn-primary {
+  background: #1f2937;
+  color: #fff;
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #111827;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+}
+
+/* Sayfa/liste yüklenirken ince nabız animasyonu */
+@keyframes nabiz {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+.animate-pulse {
+  animation: nabiz 1.4s ease-in-out infinite;
+}
+
+/* Boş liste durumları için sade ikon */
+.bos-durum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: #94a3b8;
+}
+
+.bos-durum svg {
+  opacity: 0.5;
+}
