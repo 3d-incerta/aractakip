@@ -43,6 +43,78 @@ const SONRAKI_DURUMLAR: Record<string, string[]> = {
   FATURALANDI: [],
 };
 
+// Muhasebe Sorumlusu faturalandıramaz — sadece Yönetici ve Muhasebe ve
+// Finans Müdürü nihai faturalama onayı verebilir
+function sonrakiDurumlarGetir(durum: string, rol: string | null) {
+  // Hem Muhasebe Sorumlusu hem Muhasebe ve Finans Müdürü faturalandırabilir
+  return SONRAKI_DURUMLAR[durum] ?? [];
+}
+
+const KDV_ORANI = 0.20; // %20 — tutar KDV dahil kabul edilir
+
+function kdvAyristir(tutarKdvDahil: number) {
+  const matrah = tutarKdvDahil / (1 + KDV_ORANI);
+  const kdv = tutarKdvDahil - matrah;
+  return { matrah, kdv };
+}
+
+function belgeYazdir(k: Masraf) {
+  const { matrah, kdv } = kdvAyristir(Number(k.tutar));
+  const pencere = window.open("", "_blank", "width=480,height=760");
+  if (!pencere) return;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Masraf Onay Belgesi</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 28px; color: #101827; max-width: 400px; margin: 0 auto; }
+        h1 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 2px; text-align:center; }
+        .sub { font-size: 11px; color: #64748b; margin-bottom: 20px; text-align:center; }
+        .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #cbd5e1; font-size: 13px; }
+        .row span:first-child { color: #64748b; }
+        .kdv-blok { margin-top: 12px; padding: 12px; background: #f6f7f9; border-radius: 8px; }
+        .kdv-blok .row { border-bottom: none; padding: 3px 0; font-size: 12.5px; }
+        .toplam { font-size: 17px; font-weight: bold; padding: 12px 0; border-top: 2px solid #101827; margin-top: 8px; display:flex; justify-content:space-between; }
+        .durum-etiket { display:inline-block; margin-top:16px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight:600; text-align:center; width:100%; box-sizing:border-box; }
+        .footer { margin-top: 26px; font-size: 10px; color: #94a3b8; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <h1>Masraf Onay Belgesi</h1>
+      <div class="sub">3D İnCerTa — Muhasebe &amp; Finans</div>
+
+      <div class="row"><span>Sürücü</span><span><b>${k.suruculer ? `${k.suruculer.ad} ${k.suruculer.soyad}` : "—"}</b></span></div>
+      <div class="row"><span>Gidilen firma</span><span>${k.gidilen_firma}</span></div>
+      <div class="row"><span>Tarih</span><span>${new Date(k.tarih).toLocaleDateString("tr-TR")}</span></div>
+      ${k.fatura_no ? `<div class="row"><span>Fatura no</span><span>${k.fatura_no}</span></div>` : ""}
+      ${k.fatura_tarihi ? `<div class="row"><span>Fatura tarihi</span><span>${new Date(k.fatura_tarihi).toLocaleDateString("tr-TR")}</span></div>` : ""}
+
+      <div class="kdv-blok">
+        <div class="row"><span>Matrah</span><span>${matrah.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
+        <div class="row"><span>KDV (%20)</span><span>${kdv.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
+      </div>
+
+      <div class="toplam"><span>Genel Toplam</span><span>${Number(k.tutar).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
+
+      <div class="durum-etiket" style="background:${k.durum === "FATURALANDI" ? "#e6f4f1" : k.durum === "REDDEDILDI" ? "#fbe9e9" : "#fef3d9"}; color:${k.durum === "FATURALANDI" ? "#157a6e" : k.durum === "REDDEDILDI" ? "#b32d2d" : "#92600f"}">
+        ${DURUM_ETIKET[k.durum] ?? k.durum}
+      </div>
+
+      ${k.aciklama ? `<div style="margin-top:14px; font-size:12.5px; color:#475467;"><b style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:4px;">Açıklama</b>${k.aciklama.replace(/</g, "&lt;")}</div>` : ""}
+
+      <div class="footer">Belge No: MSF-${k.id.slice(0, 8).toUpperCase()} · Oluşturulma: ${new Date().toLocaleString("tr-TR")}</div>
+
+      <script>window.onload = () => window.print();</script>
+    </body>
+    </html>
+  `;
+  pencere.document.write(html);
+  pencere.document.close();
+}
+
 const BOS_FORM = {
   surucu_id: "",
   gidilen_firma: "",
@@ -64,8 +136,9 @@ export default function YolMasraflariPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<string>("HEPSİ");
-  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe değilse true
+  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe/finans değilse true
   const [kendiSurucuId, setKendiSurucuId] = useState<string | null>(null);
+  const [kendiRol, setKendiRol] = useState<string | null>(null); // null = Yönetici; "MUHASEBE" | "FINANS" | "SURUCU"
 
   const [form, setForm] = useState(BOS_FORM);
 
@@ -85,7 +158,10 @@ export default function YolMasraflariPage() {
         .maybeSingle();
       if (kendiKayit) {
         benimSurucuId = kendiKayit.surucu_id;
+        setKendiRol(kendiKayit.rol);
         yetkiliMi = kendiKayit.rol === "MUHASEBE" || kendiKayit.rol === "FINANS";
+      } else {
+        setKendiRol(null);
       }
     }
     setKendiSurucuId(benimSurucuId);
@@ -115,6 +191,17 @@ export default function YolMasraflariPage() {
 
   const toplamTutar = gorunenler.reduce((s, k) => s + Number(k.tutar), 0);
   const bekleyenTutar = kayitlar.filter((k) => k.durum === "BEKLEMEDE").reduce((s, k) => s + Number(k.tutar), 0);
+  const faturalananTutar = gorunenler.filter((k) => k.durum === "FATURALANDI").reduce((s, k) => s + Number(k.tutar), 0);
+
+  const firmaOzeti = useMemo(() => {
+    const harita = new Map<string, number>();
+    gorunenler.forEach((k) => {
+      harita.set(k.gidilen_firma, (harita.get(k.gidilen_firma) ?? 0) + Number(k.tutar));
+    });
+    return Array.from(harita.entries())
+      .map(([firma, tutar]) => ({ firma, tutar }))
+      .sort((a, b) => b.tutar - a.tutar);
+  }, [gorunenler]);
 
   function handleEditClick(k: Masraf) {
     setEditingId(k.id);
@@ -213,16 +300,28 @@ export default function YolMasraflariPage() {
 
   return (
     <div className="p-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="font-display text-2xl mb-1">Yol Masrafları</h1>
-          <p className="text-sm text-slate-500">
-            {surucuMu
-              ? "Girdiğin masraflar onay için Muhasebe / Finans Sorumlusuna gider"
-              : "Onay akışı: Beklemede → Onaylandı → Faturalandı"}
-          </p>
+      {!surucuMu && (
+        <div className="lux-hero mb-8">
+          <div className="relative">
+            <div className="lux-eyebrow mb-3">Muhasebe &amp; Finans</div>
+            <h1 className="font-lux text-3xl text-white mb-2">Yol Masrafları</h1>
+            <p className="text-slate-300 text-sm max-w-md">
+              Onay akışı: Beklemede → Onaylandı → Faturalandı
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+      )}
+
+      <div className="flex items-center justify-between mb-4">
+        {surucuMu && (
+          <div>
+            <h1 className="font-display text-2xl mb-1">Yol Masrafları</h1>
+            <p className="text-sm text-slate-500">
+              Girdiğin masraflar onay için Muhasebe / Muhasebe ve Finans Müdürüne gider
+            </p>
+          </div>
+        )}
+        <div className="flex items-center gap-3 ml-auto">
           {!surucuMu && (
             <button
               onClick={handleExcelExport}
@@ -239,17 +338,46 @@ export default function YolMasraflariPage() {
       </div>
 
       {!surucuMu && (
-        <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
-          <div className="card p-5">
-            <div className="text-xs text-slate-500 mb-2">Onay bekleyen toplam</div>
-            <div className="odometer text-lg font-semibold inline-block">
-              {bekleyenTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8 max-w-2xl">
+          <div className="lux-stat-card">
+            <div className="lux-stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
+            <div className="lux-stat-value text-2xl">
+              {bekleyenTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
+              <span className="text-sm align-top ml-1">₺</span>
+            </div>
+            <div className="lux-stat-label">Onay bekleyen</div>
           </div>
-          <div className="card p-5">
-            <div className="text-xs text-slate-500 mb-2">Görünen toplam</div>
-            <div className="odometer text-lg font-semibold inline-block">
-              {toplamTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+          <div className="lux-stat-card">
+            <div className="lux-stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+              </svg>
+            </div>
+            <div className="lux-stat-value text-2xl">
+              {faturalananTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
+              <span className="text-sm align-top ml-1">₺</span>
+            </div>
+            <div className="lux-stat-label">Faturalanan (bu görünüm)</div>
+          </div>
+          <div className="lux-stat-card">
+            <div className="lux-stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" strokeLinejoin="round" />
+                <path d="M15 4v5h5M8 13h8M8 17h5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="lux-stat-value text-2xl">
+              {toplamTutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}
+              <span className="text-sm align-top ml-1">₺</span>
+            </div>
+            <div className="lux-stat-label">
+              Görünen toplam · KDV: {kdvAyristir(toplamTutar).kdv.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
             </div>
           </div>
         </div>
@@ -340,7 +468,30 @@ export default function YolMasraflariPage() {
         </form>
       )}
 
-      <div className="card overflow-hidden">
+      {!surucuMu && firmaOzeti.length > 0 && (
+        <div className="lux-section overflow-hidden mb-6">
+          <div className="lux-section-header">
+            <span className="lux-dot" />
+            <h2 className="font-lux text-base">Firma Bazlı Gider Özeti</h2>
+          </div>
+          <div className="flex flex-wrap gap-3 p-5">
+            {firmaOzeti.map((f) => (
+              <div key={f.firma} className="border border-line rounded-lg px-4 py-2.5 bg-paper">
+                <div className="text-xs text-slate-500">{f.firma}</div>
+                <div className="font-mono font-semibold text-ink">
+                  {f.tutar.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="lux-section overflow-hidden">
+        <div className="lux-section-header">
+          <span className="lux-dot" />
+          <h2 className="font-lux text-base">Masraf Kayıtları</h2>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-line">
@@ -367,7 +518,7 @@ export default function YolMasraflariPage() {
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`badge ${DURUM_BADGE[k.durum] ?? "badge-idle"}`}>{DURUM_ETIKET[k.durum] ?? k.durum}</span>
-                    {!surucuMu && SONRAKI_DURUMLAR[k.durum]?.map((sonraki) => (
+                    {!surucuMu && sonrakiDurumlarGetir(k.durum, kendiRol).map((sonraki) => (
                       <button
                         key={sonraki}
                         onClick={() => durumDegistir(k, sonraki)}
@@ -384,6 +535,9 @@ export default function YolMasraflariPage() {
                 </td>
                 {!surucuMu && (
                   <td className="px-5 py-3 text-right whitespace-nowrap">
+                    <button onClick={() => belgeYazdir(k)} className="text-xs text-amber hover:opacity-70 mr-4">
+                      Belge
+                    </button>
                     <button onClick={() => handleEditClick(k)} className="text-xs text-slate-500 hover:text-ink mr-4">
                       Düzenle
                     </button>
