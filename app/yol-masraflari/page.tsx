@@ -16,6 +16,8 @@ type Masraf = {
   fatura_tarihi: string | null;
   fatura_no: string | null;
   aciklama: string | null;
+  kdv_tutari: number | null;
+  fatura_gorseli_url: string | null;
   suruculer: { ad: string; soyad: string } | null;
 };
 
@@ -35,7 +37,6 @@ const DURUM_BADGE: Record<string, string> = {
   FATURALANDI: "badge-ok",
 };
 
-// Her durumdan hangi durumlara geçilebilir
 const SONRAKI_DURUMLAR: Record<string, string[]> = {
   BEKLEMEDE: ["ONAYLANDI", "REDDEDILDI"],
   ONAYLANDI: ["FATURALANDI", "REDDEDILDI"],
@@ -43,24 +44,27 @@ const SONRAKI_DURUMLAR: Record<string, string[]> = {
   FATURALANDI: [],
 };
 
-// Muhasebe Sorumlusu faturalandıramaz — sadece Yönetici ve Muhasebe ve
-// Finans Müdürü nihai faturalama onayı verebilir
 function sonrakiDurumlarGetir(durum: string, rol: string | null) {
-  // Hem Muhasebe Sorumlusu hem Muhasebe ve Finans Müdürü faturalandırabilir
   return SONRAKI_DURUMLAR[durum] ?? [];
 }
 
-const KDV_ORANI = 0.20; // %20 — tutar KDV dahil kabul edilir
+const KDV_ORANI = 0.20; // %20 — varsayılan, tutar KDV dahil kabul edilir
 
-function kdvAyristir(tutarKdvDahil: number) {
+function otomatikKdvHesapla(tutarKdvDahil: number) {
   const matrah = tutarKdvDahil / (1 + KDV_ORANI);
-  const kdv = tutarKdvDahil - matrah;
-  return { matrah, kdv };
+  return tutarKdvDahil - matrah;
+}
+
+// Kayıtlı kdv_tutari varsa onu kullan, yoksa %20 varsayarak hesapla
+function kdvTutariGetir(k: Masraf) {
+  if (k.kdv_tutari != null) return Number(k.kdv_tutari);
+  return otomatikKdvHesapla(Number(k.tutar));
 }
 
 function belgeYazdir(k: Masraf) {
-  const { matrah, kdv } = kdvAyristir(Number(k.tutar));
-  const pencere = window.open("", "_blank", "width=480,height=760");
+  const kdv = kdvTutariGetir(k);
+  const matrah = Number(k.tutar) - kdv;
+  const pencere = window.open("", "_blank", "width=480,height=820");
   if (!pencere) return;
 
   const html = `
@@ -79,6 +83,9 @@ function belgeYazdir(k: Masraf) {
         .kdv-blok .row { border-bottom: none; padding: 3px 0; font-size: 12.5px; }
         .toplam { font-size: 17px; font-weight: bold; padding: 12px 0; border-top: 2px solid #101827; margin-top: 8px; display:flex; justify-content:space-between; }
         .durum-etiket { display:inline-block; margin-top:16px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight:600; text-align:center; width:100%; box-sizing:border-box; }
+        .fatura-gorsel { margin-top: 18px; }
+        .fatura-gorsel b { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; margin-bottom:6px; }
+        .fatura-gorsel img { width:100%; border-radius:6px; border:1px solid #e4e7eb; }
         .footer { margin-top: 26px; font-size: 10px; color: #94a3b8; text-align: center; }
       </style>
     </head>
@@ -94,7 +101,7 @@ function belgeYazdir(k: Masraf) {
 
       <div class="kdv-blok">
         <div class="row"><span>Matrah</span><span>${matrah.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
-        <div class="row"><span>KDV (%20)</span><span>${kdv.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
+        <div class="row"><span>KDV</span><span>${kdv.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
       </div>
 
       <div class="toplam"><span>Genel Toplam</span><span>${Number(k.tutar).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ₺</span></div>
@@ -104,6 +111,8 @@ function belgeYazdir(k: Masraf) {
       </div>
 
       ${k.aciklama ? `<div style="margin-top:14px; font-size:12.5px; color:#475467;"><b style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:4px;">Açıklama</b>${k.aciklama.replace(/</g, "&lt;")}</div>` : ""}
+
+      ${k.fatura_gorseli_url ? `<div class="fatura-gorsel"><b>Fatura Görseli</b><img src="${k.fatura_gorseli_url}" /></div>` : ""}
 
       <div class="footer">Belge No: MSF-${k.id.slice(0, 8).toUpperCase()} · Oluşturulma: ${new Date().toLocaleString("tr-TR")}</div>
 
@@ -124,6 +133,7 @@ const BOS_FORM = {
   fatura_tarihi: "",
   fatura_no: "",
   aciklama: "",
+  kdv_tutari: "",
 };
 
 export default function YolMasraflariPage() {
@@ -133,14 +143,19 @@ export default function YolMasraflariPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<string>("HEPSİ");
-  const [surucuMu, setSurucuMu] = useState(false); // yönetici/muhasebe/finans değilse true
+  const [surucuMu, setSurucuMu] = useState(false);
   const [kendiSurucuId, setKendiSurucuId] = useState<string | null>(null);
-  const [kendiRol, setKendiRol] = useState<string | null>(null); // null = Yönetici; "MUHASEBE" | "FINANS" | "SURUCU"
+  const [kendiRol, setKendiRol] = useState<string | null>(null);
+  const [buyutulmusGorsel, setBuyutulmusGorsel] = useState<string | null>(null);
 
   const [form, setForm] = useState(BOS_FORM);
+  const [faturaDosyasi, setFaturaDosyasi] = useState<File | null>(null);
+  const [faturaOnizleme, setFaturaOnizleme] = useState<string | null>(null);
+  const [mevcutFaturaUrl, setMevcutFaturaUrl] = useState<string | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -148,7 +163,7 @@ export default function YolMasraflariPage() {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id;
     let benimSurucuId: string | null = null;
-    let yetkiliMi = true; // yönetici/muhasebe/finans mı?
+    let yetkiliMi = true;
 
     if (userId) {
       const { data: kendiKayit } = await supabase
@@ -170,7 +185,7 @@ export default function YolMasraflariPage() {
     const [{ data: k }, { data: s }] = await Promise.all([
       supabase
         .from("yol_masraflari")
-        .select("id, surucu_id, gidilen_firma, tarih, tutar, durum, fatura_tarihi, fatura_no, aciklama, suruculer(ad,soyad)")
+        .select("id, surucu_id, gidilen_firma, tarih, tutar, durum, fatura_tarihi, fatura_no, aciklama, kdv_tutari, fatura_gorseli_url, suruculer(ad,soyad)")
         .order("tarih", { ascending: false })
         .limit(200),
       supabase.from("suruculer").select("surucu_id, ad, soyad").order("ad"),
@@ -190,6 +205,7 @@ export default function YolMasraflariPage() {
   }, [kayitlar, filtre]);
 
   const toplamTutar = gorunenler.reduce((s, k) => s + Number(k.tutar), 0);
+  const toplamKdv = gorunenler.reduce((s, k) => s + kdvTutariGetir(k), 0);
   const bekleyenTutar = kayitlar.filter((k) => k.durum === "BEKLEMEDE").reduce((s, k) => s + Number(k.tutar), 0);
   const faturalananTutar = gorunenler.filter((k) => k.durum === "FATURALANDI").reduce((s, k) => s + Number(k.tutar), 0);
 
@@ -203,6 +219,13 @@ export default function YolMasraflariPage() {
       .sort((a, b) => b.tutar - a.tutar);
   }, [gorunenler]);
 
+  function handleFaturaSecildi(e: React.ChangeEvent<HTMLInputElement>) {
+    const dosya = e.target.files?.[0];
+    if (!dosya) return;
+    setFaturaDosyasi(dosya);
+    setFaturaOnizleme(URL.createObjectURL(dosya));
+  }
+
   function handleEditClick(k: Masraf) {
     setEditingId(k.id);
     setForm({
@@ -214,7 +237,11 @@ export default function YolMasraflariPage() {
       fatura_tarihi: k.fatura_tarihi ?? "",
       fatura_no: k.fatura_no ?? "",
       aciklama: k.aciklama ?? "",
+      kdv_tutari: k.kdv_tutari != null ? String(k.kdv_tutari) : "",
     });
+    setMevcutFaturaUrl(k.fatura_gorseli_url);
+    setFaturaDosyasi(null);
+    setFaturaOnizleme(null);
     setShowForm(true);
     setError(null);
   }
@@ -225,6 +252,7 @@ export default function YolMasraflariPage() {
       Sürücü: k.suruculer ? `${k.suruculer.ad} ${k.suruculer.soyad}` : "",
       "Gidilen Firma": k.gidilen_firma,
       Tutar: Number(k.tutar),
+      "KDV Tutarı": Number(kdvTutariGetir(k).toFixed(2)),
       Durum: DURUM_ETIKET[k.durum] ?? k.durum,
       "Fatura No": k.fatura_no ?? "",
       "Fatura Tarihi": k.fatura_tarihi ? new Date(k.fatura_tarihi).toLocaleDateString("tr-TR") : "",
@@ -236,6 +264,9 @@ export default function YolMasraflariPage() {
   function handleNewClick() {
     setEditingId(null);
     setForm(surucuMu ? { ...BOS_FORM, surucu_id: kendiSurucuId ?? "" } : BOS_FORM);
+    setFaturaDosyasi(null);
+    setFaturaOnizleme(null);
+    setMevcutFaturaUrl(null);
     setShowForm((s) => (editingId ? true : !s));
   }
 
@@ -243,13 +274,42 @@ export default function YolMasraflariPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(BOS_FORM);
+    setFaturaDosyasi(null);
+    setFaturaOnizleme(null);
+    setMevcutFaturaUrl(null);
     setError(null);
+  }
+
+  function handleTutarDegisti(deger: string) {
+    // Tutar değişince KDV alanı boşsa (ya da henüz elle değiştirilmediyse)
+    // otomatik %20 üzerinden hesaplayıp doldur — kullanıcı istersen üzerine yazabilir
+    const yeniTutar = deger ? Number(deger) : 0;
+    const otomatikKdv = yeniTutar ? otomatikKdvHesapla(yeniTutar).toFixed(2) : "";
+    setForm((f) => ({ ...f, tutar: deger, kdv_tutari: otomatikKdv }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+
+    let faturaUrl = mevcutFaturaUrl;
+
+    if (faturaDosyasi) {
+      setUploading(true);
+      const uzanti = faturaDosyasi.name.split(".").pop();
+      const dosyaYolu = `masraf-fatura/${Date.now()}.${uzanti}`;
+      const { error: yuklemeHatasi } = await supabase.storage.from("belgeler").upload(dosyaYolu, faturaDosyasi);
+      setUploading(false);
+
+      if (yuklemeHatasi) {
+        setSaving(false);
+        setError("Fatura görseli yüklenemedi: " + yuklemeHatasi.message);
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage.from("belgeler").getPublicUrl(dosyaYolu);
+      faturaUrl = publicUrlData.publicUrl;
+    }
 
     const payload = {
       surucu_id: surucuMu ? kendiSurucuId : (form.surucu_id || null),
@@ -260,6 +320,8 @@ export default function YolMasraflariPage() {
       fatura_tarihi: surucuMu ? null : (form.fatura_tarihi || null),
       fatura_no: surucuMu ? null : (form.fatura_no || null),
       aciklama: form.aciklama || null,
+      kdv_tutari: surucuMu ? null : (form.kdv_tutari ? Number(form.kdv_tutari) : null),
+      fatura_gorseli_url: surucuMu ? null : faturaUrl,
     };
 
     const { error } = editingId
@@ -377,7 +439,7 @@ export default function YolMasraflariPage() {
               <span className="text-sm align-top ml-1">₺</span>
             </div>
             <div className="lux-stat-label">
-              Görünen toplam · KDV: {kdvAyristir(toplamTutar).kdv.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
+              Görünen toplam · KDV: {toplamKdv.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺
             </div>
           </div>
         </div>
@@ -425,13 +487,19 @@ export default function YolMasraflariPage() {
               onChange={(e) => setForm({ ...form, tarih: e.target.value })} />
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Tutar (₺)</label>
+            <label className="text-xs text-slate-500 block mb-1">Tutar (₺, KDV dahil)</label>
             <input required type="number" step="0.01" className="input" value={form.tutar}
-              onChange={(e) => setForm({ ...form, tutar: e.target.value })} />
+              onChange={(e) => handleTutarDegisti(e.target.value)} />
           </div>
 
           {!surucuMu && (
             <>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">KDV Tutarı (₺)</label>
+                <input type="number" step="0.01" className="input" value={form.kdv_tutari}
+                  onChange={(e) => setForm({ ...form, kdv_tutari: e.target.value })}
+                  placeholder="Tutar girince otomatik hesaplanır" />
+              </div>
               <div>
                 <label className="text-xs text-slate-500 block mb-1">Durum</label>
                 <select className="input" value={form.durum} onChange={(e) => setForm({ ...form, durum: e.target.value })}>
@@ -447,6 +515,24 @@ export default function YolMasraflariPage() {
                 <label className="text-xs text-slate-500 block mb-1">Fatura tarihi (opsiyonel)</label>
                 <input type="date" className="input" value={form.fatura_tarihi}
                   onChange={(e) => setForm({ ...form, fatura_tarihi: e.target.value })} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs text-slate-500 block mb-1">Fatura görseli</label>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm border border-line rounded-md px-4 py-2.5 cursor-pointer hover:bg-paper inline-block">
+                    {faturaDosyasi ? "Farklı görsel seç" : "Fotoğraf çek / dosya seç"}
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFaturaSecildi} />
+                  </label>
+                  {(faturaOnizleme || mevcutFaturaUrl) && (
+                    <img
+                      src={faturaOnizleme ?? mevcutFaturaUrl ?? ""}
+                      alt="Fatura önizleme"
+                      className="h-14 w-14 object-cover rounded-md border border-line cursor-pointer"
+                      onClick={() => setBuyutulmusGorsel(faturaOnizleme ?? mevcutFaturaUrl)}
+                    />
+                  )}
+                  {uploading && <span className="text-xs text-slate-400">Yükleniyor...</span>}
+                </div>
               </div>
             </>
           )}
@@ -495,10 +581,12 @@ export default function YolMasraflariPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-slate-500 border-b border-line">
+              {!surucuMu && <th className="px-5 py-3 font-normal">Fatura</th>}
               <th className="px-5 py-3 font-normal">Tarih</th>
               {!surucuMu && <th className="px-5 py-3 font-normal">Sürücü</th>}
               <th className="px-5 py-3 font-normal">Gidilen firma</th>
               <th className="px-5 py-3 font-normal">Tutar</th>
+              {!surucuMu && <th className="px-5 py-3 font-normal">KDV</th>}
               <th className="px-5 py-3 font-normal">Durum</th>
               <th className="px-5 py-3 font-normal">Açıklama</th>
               {!surucuMu && <th className="px-5 py-3 font-normal text-right">İşlemler</th>}
@@ -507,6 +595,20 @@ export default function YolMasraflariPage() {
           <tbody>
             {gorunenler.map((k) => (
               <tr key={k.id} className="border-b border-line last:border-0">
+                {!surucuMu && (
+                  <td className="px-5 py-3">
+                    {k.fatura_gorseli_url ? (
+                      <img
+                        src={k.fatura_gorseli_url}
+                        alt="Fatura"
+                        className="h-9 w-9 object-cover rounded border border-line cursor-pointer"
+                        onClick={() => setBuyutulmusGorsel(k.fatura_gorseli_url)}
+                      />
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-5 py-3 text-slate-600">{new Date(k.tarih).toLocaleDateString("tr-TR")}</td>
                 {!surucuMu && (
                   <td className="px-5 py-3 text-slate-700">
@@ -515,6 +617,9 @@ export default function YolMasraflariPage() {
                 )}
                 <td className="px-5 py-3 text-slate-700">{k.gidilen_firma}</td>
                 <td className="px-5 py-3 font-mono">{Number(k.tutar).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺</td>
+                {!surucuMu && (
+                  <td className="px-5 py-3 font-mono text-slate-500">{kdvTutariGetir(k).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺</td>
+                )}
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`badge ${DURUM_BADGE[k.durum] ?? "badge-idle"}`}>{DURUM_ETIKET[k.durum] ?? k.durum}</span>
@@ -530,7 +635,7 @@ export default function YolMasraflariPage() {
                     ))}
                   </div>
                 </td>
-                <td className="px-5 py-3 text-slate-500 max-w-[180px] truncate" title={k.aciklama ?? ""}>
+                <td className="px-5 py-3 text-slate-500 max-w-[160px] truncate" title={k.aciklama ?? ""}>
                   {k.aciklama ?? "—"}
                 </td>
                 {!surucuMu && (
@@ -559,6 +664,15 @@ export default function YolMasraflariPage() {
         )}
         {loading && <div className="px-5 py-10 text-sm text-slate-500 text-center animate-pulse">Yükleniyor...</div>}
       </div>
+
+      {buyutulmusGorsel && (
+        <div
+          className="fixed inset-0 bg-navy/60 flex items-center justify-center p-6 z-50"
+          onClick={() => setBuyutulmusGorsel(null)}
+        >
+          <img src={buyutulmusGorsel} alt="Fatura büyük görünüm" className="max-h-[85vh] max-w-full rounded-lg shadow-2xl" />
+        </div>
+      )}
     </div>
   );
 }
